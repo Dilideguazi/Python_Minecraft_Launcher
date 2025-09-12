@@ -102,7 +102,7 @@ class MinecraftLauncherGUI:
         try:
             # 获取最新版本
             self.download_from_server('https://pmcldownloadserver.dpdns.org/latest_version.txt', 'checkupdate.json')
-            current_version = '0.1.9.8.2'
+            current_version = '0.1.9.8.3'
             have_later_version = False
 
             with open('checkupdate.json', 'r', encoding='utf-8') as check_update_file:
@@ -348,7 +348,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/0.1.9.7 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/0.1.9.8 (Python Minecraft Launcher)'
                 }
             )
             
@@ -1119,7 +1119,6 @@ class MinecraftLauncherGUI:
                     
                     # 更新.json文件中的版本ID
                     try:
-                        import json
                         with open(new_json, 'r', encoding='utf-8') as f:
                             json_data = json.load(f)
                         
@@ -1174,6 +1173,7 @@ class MinecraftLauncherGUI:
                     self.load_installed_versions()
                 else:
                     messagebox.showwarning("警告", f"版本 {version} 不存在")
+                self.version_settings_window.destroy()
             except Exception as e:
                 messagebox.showerror("错误", f"删除版本失败: {str(e)}")
                 
@@ -1438,6 +1438,7 @@ class MinecraftLauncherGUI:
         self.dwidgets.title("下载版本")
         self.dwidgets.geometry(f"500x300+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-300)/2)}")
         self.dwidgets.iconbitmap(".\\PMCL.ico")
+        self.dwidgets.grab_set()
         self.dwidgets.resizable(False, False)
         
         # 下载窗口主框架
@@ -1525,84 +1526,71 @@ class MinecraftLauncherGUI:
         install_thread.start()
             
     def _install_version_thread(self, version):
-        """在后台线程中安装版本"""
-        modloader = self.download_modloader_var.get()
-            
-        if modloader == '原版':
-            try:
-                self.log(f"正在安装Minecraft {version}...")
-                # 安装进度回调函数
-                def progress_callback(progress):
-                    self.log(f"安装进度: {progress}%")
-                                
-                # 安装版本
-                minecraft_launcher_lib.install.install_minecraft_version(
-                    version, 
-                    self.minecraft_directory, 
-                    callback={"progress": progress_callback}
-                )
-                self.log(f"Minecraft {version} 安装完成!")
-                messagebox.showinfo("成功", f"Minecraft {version} 安装完成!")
-            except Exception as e:
-                self.log(f"安装失败: {str(e)}")
-                messagebox.showerror("错误", f"安装失败: {str(e)}")
-                    
-        elif modloader == 'Forge':
-            try:
-                self.log(f"正在安装Forge for Minecraft {version}...")
-                    
-                # 获取Forge最新版本
-                forge_version = minecraft_launcher_lib.forge.find_forge_version(version)
-                if forge_version is None:
-                    self.log(f"未找到适用于Minecraft {version}的Forge版本")
-                    messagebox.showerror("错误", f"未找到适用于Minecraft {version}的Forge版本")
-                    return
-                    
-                # 安装进度回调函数
-                def progress_callback(progress):
-                    self.log(f"安装进度: {progress}%")
-                    
-                # 安装Forge
-                minecraft_launcher_lib.forge.install_forge_version(
-                    forge_version, 
-                    self.minecraft_directory,
-                    callback={"progress": progress_callback}
-                )
-                    
-                self.log(f"Forge {forge_version} 安装完成!")
-                messagebox.showinfo("成功", f"Forge {forge_version} 安装完成!")
-            except Exception as e:
-                self.log(f"Forge安装失败: {str(e)}")
-                messagebox.showerror("错误", f"Forge安装失败: {str(e)}")
-                    
-        elif modloader == 'Fabric':
-            try:
-                self.log(f"正在安装Fabric for Minecraft {version}...")
-                    
-                # 安装进度回调函数
-                def progress_callback(progress):
-                    self.log(f"安装进度: {progress}%")
-                    
-                # 安装Fabric
-                minecraft_launcher_lib.fabric.install_fabric(
-                    version,
-                    self.minecraft_directory,
-                    callback={"progress": progress_callback}
-                )
-                self.log(f"Fabric for Minecraft {version} 安装完成!")
-                messagebox.showinfo("成功", f"Fabric for Minecraft {version} 安装完成!")
-            except Exception as e:
-                self.log(f"Fabric安装失败: {str(e)}")
-                messagebox.showerror("错误", f"Fabric安装失败: {str(e)}")
-        # 重新加载已安装版本列表
-        self.load_installed_versions()
-            
-        # 重新启用按钮
-        self.download_button.config(state=tk.NORMAL)
-        self.launch_button.config(state=tk.NORMAL)
+      """在后台线程中安装版本"""
+      modloader = self.download_modloader_var.get()
 
-        # 关闭下载窗口
-        self.dwidgets.destroy()
+      if modloader == '原版':
+          try:
+              self.log(f"正在安装Minecraft {version}...")
+
+              # 安装版本
+              minecraft_launcher_lib.install.install_minecraft_version(
+                  version,
+                  self.minecraft_directory,
+              )
+              self.log(f"Minecraft {version} 安装完成!")
+              messagebox.showinfo("成功", f"Minecraft {version} 安装完成!")
+          except Exception as e:
+              self.log(f"安装失败: {str(e)}")
+              messagebox.showerror("错误", f"安装失败: {str(e)}")
+
+      elif modloader == 'Forge':
+          try:
+              self.log(f"正在安装Forge for Minecraft {version}...")
+
+              # 获取Forge最新版本
+              forge_version = minecraft_launcher_lib.forge.find_forge_version(version)
+              if forge_version is None:
+                  self.log(f"未找到适用于Minecraft {version}的Forge版本")
+                  messagebox.showerror("错误", f"未找到适用于Minecraft {version}的Forge版本")
+                  return
+
+              # 安装Forge
+              minecraft_launcher_lib.forge.install_forge_version(
+                  forge_version,
+                  self.minecraft_directory,
+              )
+
+              self.log(f"Forge {forge_version} 安装完成!")
+              messagebox.showinfo("成功", f"Forge {forge_version} 安装完成!")
+          except Exception as e:
+              self.log(f"Forge安装失败: {str(e)}")
+              messagebox.showerror("错误", f"Forge安装失败: {str(e)}")
+
+      elif modloader == 'Fabric':
+          try:
+              self.log(f"正在安装Fabric for Minecraft {version}...")
+
+              # 安装Fabric
+              minecraft_launcher_lib.fabric.install_fabric(
+                  version,
+                  self.minecraft_directory,
+              )
+              self.log(f"Fabric for Minecraft {version} 安装完成!")
+              messagebox.showinfo("成功", f"Fabric for Minecraft {version} 安装完成!")
+          except Exception as e:
+              self.log(f"Fabric安装失败: {str(e)}")
+              messagebox.showerror("错误", f"Fabric安装失败: {str(e)}")
+
+      # 重新加载已安装版本列表
+      self.load_installed_versions()
+
+      # 重新启用按钮
+      self.download_button.config(state=tk.NORMAL)
+      self.launch_button.config(state=tk.NORMAL)
+
+      # 关闭下载窗口
+      self.dwidgets.destroy()
 
     # 重启启动器
     def restart(self):
@@ -1650,7 +1638,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作者主页",command = lambda: webbrowser.open('https://space.bilibili.com/1191376859'))
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Beta 1.9.8-hotfix.2\nBilibili @七星五彩 (Github & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Beta 1.9.8-hotfix.3\nBilibili @七星五彩 (Github & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -1950,7 +1938,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2058,15 +2046,12 @@ del /f /s /q ".\\cleangame.bat"''')
         self.install_datapack_version_combobox.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         self.install_datapack_version_combobox['values'] = self.installed_versions
         self.install_datapack_version_var.set(self.installed_versions[0])
+        self.install_datapack_version_combobox.bind("<<ComboboxSelected>>", self.load_world_list)
         
         # 选择想要安装数据包的世界    
         self.install_datapack_world_var = tk.StringVar()
         self.install_datapack_world_combobox = ttk.Combobox(version_main_frame, textvariable=self.install_datapack_world_var, state="readonly", width=40)
         self.install_datapack_world_combobox.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        # 刷新世界
-        load_world_list_button = ttk.Button(version_main_frame, text="刷新世界", command=self.load_world_list, width=10)
-        load_world_list_button.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
         # 加载版本和世界列表
         self.load_installed_versions()
@@ -2078,7 +2063,7 @@ del /f /s /q ".\\cleangame.bat"''')
         
         # 创建Treeview来显示版本列表
         version_columns = ('version', 'datapack_filename', 'mc_version', 'type', 'date')
-        version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=15)
+        version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
         
         # 定义列标题
         version_tree.heading('version', text='版本')
@@ -2161,7 +2146,7 @@ del /f /s /q ".\\cleangame.bat"''')
         # 返回选择的版本ID
         return selected_version[0]
         
-    def load_world_list(self):
+    def load_world_list(self, event=None):
         """加载世界列表"""
         try:
             self.init_isolation_state(self.install_datapack_version_var.get())
@@ -2200,14 +2185,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2471,7 +2456,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2681,14 +2666,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2955,7 +2940,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3168,14 +3153,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3471,7 +3456,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3681,14 +3666,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3948,7 +3933,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4155,14 +4140,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.7 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
