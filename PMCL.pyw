@@ -31,10 +31,13 @@ class MinecraftLauncherGUI:
         # self.minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
         self.minecraft_directory = f'{os.path.abspath('')}\\.minecraft'
 
-        # Java路径
+        
+        # 初始化设置
+        self.use_custom_java = True
+        self.use_java = False
         self.java_path = None
-        # 皮肤路径
         self.skin_path = None
+        self.memory = None
 
         # 启动器配置文件
         if os.path.exists(f'{self.minecraft_directory}'):
@@ -102,7 +105,7 @@ class MinecraftLauncherGUI:
         try:
             # 获取最新版本
             self.download_from_server('https://pmcldownloadserver.dpdns.org/latest_version.txt', 'checkupdate.json')
-            current_version = '0.1.9.8.3'
+            current_version = '0.1.9.9'
             have_later_version = False
 
             with open('checkupdate.json', 'r', encoding='utf-8') as check_update_file:
@@ -348,7 +351,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/0.1.9.8 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/0.1.9.9 (Python Minecraft Launcher)'
                 }
             )
             
@@ -1269,14 +1272,19 @@ class MinecraftLauncherGUI:
         }
         
         # 如果设置了Java路径，则添加到选项中
-        if self.java_path:
-            options["executablePath"] = self.java_path
-            
-        # 如果设置了皮肤路径，则添加到选项中
-        if self.skin_path:
-            options["customResolution"] = True
-            options["resolutionWidth"] = "854"
-            options["resolutionHeight"] = "480"
+        if not self.use_custom_java:
+            if self.java_path:
+                options["executablePath"] = self.java_path
+        
+        # 添加内存设置
+        if hasattr(self, 'memory_var'):
+            memory = self.memory_var.get()
+            if memory and memory.isdigit():
+                options["jvmArguments"] = [f"-Xmx{memory}m"]
+        
+        options["customResolution"] = True
+        options["resolutionWidth"] = "854"
+        options["resolutionHeight"] = "480"
             
         # 初始化版本隔离状态
         self.init_isolation_state(version)
@@ -1306,6 +1314,12 @@ class MinecraftLauncherGUI:
             # 保存用户名
             self.save_settings()
             
+            # 应用内存设置
+            if hasattr(self, 'memory_var'):
+                memory = self.memory_var.get()
+                if memory and memory.isdigit():
+                    options["jvmArguments"] = [f"-Xmx{memory}m"]
+            
             # 设置中文
             if not os.path.exists(f'{self.isolation_dir}\\options.txt'):
                 with open(f'{self.isolation_dir}\\options.txt', 'w') as options_file:
@@ -1333,6 +1347,14 @@ class MinecraftLauncherGUI:
                 self.minecraft_directory, 
                 options
             )
+            for i, arg in enumerate(minecraft_command):
+                if arg == "--versionType":
+                    minecraft_command[i + 1] = "PMCL"
+                    break
+
+            if not self.use_java:
+                minecraft_command[0] = minecraft_command[0].replace('java.exe', 'javaw.exe')
+                
             self.log(str(minecraft_command))
             self.log("Minecraft已启动")
 
@@ -1372,6 +1394,12 @@ class MinecraftLauncherGUI:
             options["uuid"] = auth_data["uuid"]
             options["token"] = auth_data["access_token"]
             
+            # 添加内存设置
+            if hasattr(self, 'memory_var'):
+                memory = self.memory_var.get()
+                if memory and memory.isdigit():
+                    options["jvmArguments"] = [f"-Xmx{memory}m"]
+            
             # 添加Yggdrasil服务器参数
             options["customResolution"] = True
             options["resolutionWidth"] = "854"
@@ -1402,7 +1430,8 @@ class MinecraftLauncherGUI:
                 for i, arg in enumerate(minecraft_command):
                     if arg == "-cp" or arg == "-classpath":
                         java_agent_index = i
-                        break
+                    if arg == "--versionType":
+                        minecraft_command[i + 1] = "PMCL"
                 
                 if java_agent_index != -1:
                     minecraft_command.insert(java_agent_index, f"-javaagent:{authlib_injector_path}=https://littleskin.cn/api/yggdrasil")
@@ -1415,6 +1444,9 @@ class MinecraftLauncherGUI:
             else:
                 self.log("警告: 未找到authlib-injector.jar，将使用默认认证")
 
+            if not self.use_java:
+                minecraft_command[0] = minecraft_command[0].replace('java.exe', 'javaw.exe')
+                
             self.log(str(minecraft_command))
             self.log("Minecraft已启动")
 
@@ -1638,7 +1670,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作者主页",command = lambda: webbrowser.open('https://space.bilibili.com/1191376859'))
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Beta 1.9.8-hotfix.3\nBilibili @七星五彩 (Github & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Beta 1.9.9\nBilibili @七星五彩 (Github & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -1655,10 +1687,13 @@ del /f /s /q ".\\cleangame.bat"''')
             if os.path.exists(settings_file):
                 with open(settings_file, "r") as f:
                     settings = json.load(f)
+                    self.use_custom_java = settings.get("use_custom_java", True)
+                    self.use_java = settings.get("use_java", False)
                     self.java_path = settings.get("java_path", None)
                     self.skin_path = settings.get("skin_path", None)
                     self.username_var.set(settings.get("offline_username", ""))
                     self.littleskin_email_var.set(settings.get("littleskin_email", ""))
+                    self.memory = settings.get("memory", None)
         except Exception as e:
             self.log(f"加载设置失败: {str(e)}")
             
@@ -1667,10 +1702,13 @@ del /f /s /q ".\\cleangame.bat"''')
         try:
             settings_file = f"{os.path.abspath('')}\\pmcl_settings.json"
             settings = {
+                "use_custom_java": self.use_custom_java,
+                "use_java": self.use_java,
                 "java_path": self.java_path,
                 "skin_path": self.skin_path,
                 "offline_username": self.username_var.get(),
-                "littleskin_email": self.littleskin_email_var.get()
+                "littleskin_email": self.littleskin_email_var.get(),
+                "memory": self.memory
             }
             with open(settings_file, "w") as f:
                 json.dump(settings, f, indent=2)
@@ -1682,7 +1720,7 @@ del /f /s /q ".\\cleangame.bat"''')
         """创建设置窗口"""
         self.settings_window = tk.Toplevel(self.root)
         self.settings_window.title("设置")
-        self.settings_window.geometry(f"500x320+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-320)/2)}")
+        self.settings_window.geometry(f"500x530+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-530)/2)}")
         self.settings_window.iconbitmap(".\\PMCL.ico")
         self.settings_window.grab_set()
         self.settings_window.resizable(False, False)
@@ -1698,15 +1736,37 @@ del /f /s /q ".\\cleangame.bat"''')
         # Java设置框架
         java_frame = ttk.LabelFrame(smain_frame, text="Java设置", padding="10")
         java_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.use_custom_java_var = tk.BooleanVar(value=self.use_custom_java)
+        self.use_custom_java_checkbox = ttk.Checkbutton(java_frame, text="自动选择Java", variable=self.use_custom_java_var, command=self.toggle_use_custom_java_state).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+
+        self.custom_java_frame = ttk.Frame(java_frame, padding="10")
+        self.custom_java_frame.grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
         
-        ttk.Label(java_frame, text="Java路径 (可选，建议输入javaw或留空):").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(self.custom_java_frame, text="Java路径:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         self.java_path_var = tk.StringVar(value=self.java_path if self.java_path else "")
-        self.java_path_entry = ttk.Entry(java_frame, textvariable=self.java_path_var, width=30)
+        self.java_path_entry = ttk.Entry(self.custom_java_frame, textvariable=self.java_path_var, width=30)
         self.java_path_entry.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
-        self.java_browse_button = ttk.Button(java_frame, text="浏览", command=self.browse_java_path)
+        self.java_browse_button = ttk.Button(self.custom_java_frame, text="浏览", command=self.browse_java_path)
         self.java_browse_button.grid(row=1, column=1, padx=(5, 0), pady=(0, 5))
-        
+
+        self.use_java_var = tk.BooleanVar(value=self.use_java)
+        self.use_java_checkbox = ttk.Checkbutton(java_frame, text="使用java.exe而不是javaw.exe", variable=self.use_java_var)
+        self.use_java_checkbox.grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+
         java_frame.columnconfigure(0, weight=1)
+        
+        # 内存设置框架
+        memory_frame = ttk.LabelFrame(smain_frame, text="内存设置", padding="10")
+        memory_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(memory_frame, text="最大内存 (可选，以MB为单位):").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        self.memory_var = tk.StringVar(value=self.memory if self.memory else "")
+        self.memory_entry = ttk.Entry(memory_frame, textvariable=self.memory_var, width=30)
+        self.memory_entry.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        ttk.Label(memory_frame, text="建议: 2048(2GB), 4096(4GB), 8192(8GB)").grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+        
+        memory_frame.columnconfigure(0, weight=1)
         
         # 皮肤设置框架
         skin_frame = ttk.LabelFrame(smain_frame, text="皮肤设置", padding="10")
@@ -1732,15 +1792,38 @@ del /f /s /q ".\\cleangame.bat"''')
         # 取消按钮
         cancel_button = ttk.Button(button_frame, text="取消", command=self.settings_window.destroy)
         cancel_button.pack(side=tk.RIGHT)
+
+        # 加载设置
+        self.load_settings()
+
+        if self.use_custom_java_var.get():
+            self.use_java_var.set(self.use_java)
+            self.custom_java_frame.grid_remove()
+        else:
+            self.use_java_checkbox.config(state=tk.DISABLED)
+            self.use_java_var.set(True)
         
     def save_settings_from_window(self):
         """从设置窗口保存设置"""
-        # 获取Java路径
+        # 获取Java设置
+        use_custom_java = self.use_custom_java_var.get()
+        self.use_custom_java = use_custom_java
+        
+        use_java = self.use_java_var.get()
+        self.use_java = use_java
+        
         java_path = self.java_path_var.get()
         if java_path:
             self.java_path = java_path
         else:
             self.java_path = None
+            
+        # 获取内存设置
+        memory = self.memory_var.get()
+        if memory:
+            self.memory = memory
+        else:
+            self.memory = None
             
         # 获取皮肤路径
         skin_path = self.skin_path_var.get()
@@ -1756,6 +1839,17 @@ del /f /s /q ".\\cleangame.bat"''')
         self.settings_window.destroy()
         
         messagebox.showinfo("成功", "设置已保存")
+
+    def toggle_use_custom_java_state(self):
+        """切换使用自定义Java状态"""
+        if self.use_custom_java_var.get():
+            self.use_java_checkbox.config(state=tk.NORMAL)
+            self.use_java_var.set(self.use_java)
+            self.custom_java_frame.grid_remove()
+        else:
+            self.use_java_checkbox.config(state=tk.DISABLED)
+            self.use_java_var.set(True)
+            self.custom_java_frame.grid()
             
     # 创建数据包下载窗口
     def create_datapack_download_widgets(self):
@@ -1938,7 +2032,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2185,14 +2279,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2456,7 +2550,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2666,14 +2760,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2940,7 +3034,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3153,14 +3247,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3456,7 +3550,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3666,14 +3760,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3933,7 +4027,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4140,14 +4234,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.8 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
