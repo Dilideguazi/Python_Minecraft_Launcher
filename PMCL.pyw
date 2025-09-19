@@ -105,7 +105,7 @@ class MinecraftLauncherGUI:
         try:
             # 获取最新版本
             self.download_from_server('https://pmcldownloadserver.dpdns.org/latest_version.txt', 'checkupdate.json')
-            current_version = '0.1.9.9'
+            current_version = '0.1.9.9.1'
             have_later_version = False
 
             with open('checkupdate.json', 'r', encoding='utf-8') as check_update_file:
@@ -422,6 +422,7 @@ class MinecraftLauncherGUI:
         dialog.title("选择角色")
         dialog.transient(self.root)
         dialog.grab_set()
+        dialog.iconbitmap('.\\PMCL.ico')
         
         # 居中显示
         dialog.update_idletasks()
@@ -1275,6 +1276,9 @@ class MinecraftLauncherGUI:
         if not self.use_custom_java:
             if self.java_path:
                 options["executablePath"] = self.java_path
+            else:
+                messagebox.showerror("错误", "请输入Java路径！")
+                return
         
         # 添加内存设置
         if hasattr(self, 'memory_var'):
@@ -1351,13 +1355,16 @@ class MinecraftLauncherGUI:
                 if arg == "--versionType":
                     minecraft_command[i + 1] = "PMCL"
                     break
-
+            
             if not self.use_java:
                 minecraft_command[0] = minecraft_command[0].replace('java.exe', 'javaw.exe')
                 
             self.log(str(minecraft_command))
             self.log("Minecraft已启动")
 
+            # 重新启用启动按钮
+            self.launch_button.config(state=tk.NORMAL)
+            
             # 启动Minecraft
             result = subprocess.run(minecraft_command, cwd=self.minecraft_directory)
             if result.returncode:
@@ -1449,6 +1456,9 @@ class MinecraftLauncherGUI:
                 
             self.log(str(minecraft_command))
             self.log("Minecraft已启动")
+
+            # 重新启用启动按钮
+            self.launch_button.config(state=tk.NORMAL)
 
             # 启动Minecraft
             result = subprocess.run(minecraft_command, cwd=self.minecraft_directory)
@@ -1670,7 +1680,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作者主页",command = lambda: webbrowser.open('https://space.bilibili.com/1191376859'))
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Beta 1.9.9\nBilibili @七星五彩 (Github & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Beta 1.9.9-hotfix.1\nBilibili @七星五彩 (Github & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -1958,6 +1968,8 @@ del /f /s /q ".\\cleangame.bat"''')
                 for version in versions:
                     if version['type'] == 'release':
                         self.version_list.append(version['id'])
+
+            self.version_list.insert(0, "全部")
                     
             # 更新下拉列表
             self.datapack_mc_version_combobox['value'] = self.version_list
@@ -2476,6 +2488,8 @@ del /f /s /q ".\\cleangame.bat"''')
                 for version in versions:
                     if version['type'] == 'release':
                         self.version_list.append(version['id'])
+
+            self.version_list.insert(0, "全部")
                     
             # 更新下拉列表
             self.resourcepack_mc_version_combobox['value'] = self.version_list
@@ -2883,7 +2897,7 @@ del /f /s /q ".\\cleangame.bat"''')
         ttk.Label(search_frame, text="Mod加载器:").grid(row=2, column=1, sticky=tk.W, pady=(0, 5))
         self.mod_loader_var = tk.StringVar()
         self.mod_loader_var.set('全部')
-        self.mod_loader_combobox = ttk.Combobox(search_frame, values=['全部', 'Forge', 'Fabric', 'Quilt（启动器不支持）'], textvariable=self.mod_loader_var, state="readonly", width=20)
+        self.mod_loader_combobox = ttk.Combobox(search_frame, values=['全部', 'Forge', 'Fabric'], textvariable=self.mod_loader_var, state="readonly", width=20)
         self.mod_loader_combobox.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # 显示非正式版
@@ -2960,6 +2974,8 @@ del /f /s /q ".\\cleangame.bat"''')
                 for version in versions:
                     if version['type'] == 'release':
                         self.version_list.append(version['id'])
+
+            self.version_list.insert(0, "全部")
                     
             # 更新下拉列表
             self.mod_mc_version_combobox['value'] = self.version_list
@@ -3476,6 +3492,8 @@ del /f /s /q ".\\cleangame.bat"''')
                 for version in versions:
                     if version['type'] == 'release':
                         self.version_list.append(version['id'])
+
+            self.version_list.insert(0, "全部")
                     
             # 更新下拉列表
             self.shader_mc_version_combobox['value'] = self.version_list
@@ -3953,6 +3971,8 @@ del /f /s /q ".\\cleangame.bat"''')
                 for version in versions:
                     if version['type'] == 'release':
                         self.version_list.append(version['id'])
+
+            self.version_list.insert(0, "全部")
                     
             # 更新下拉列表
             self.modpack_mc_version_combobox['value'] = self.version_list
@@ -4437,26 +4457,22 @@ del /f /s /q ".\\cleangame.bat"''')
             with open('update.bat', 'w') as update:
                 update.write('''
 @echo off
+::%1(start /min cmd.exe /c %0 :&exit)
 setlocal
-
-echo 正在更新启动器...
 
 :loop
 tasklist /fi "imagename eq PMCL.exe" /fo csv 2>nul | find /i "PMCL.exe" >nul
 if not errorlevel 1 (
-    echo 等待启动器关闭...
-    timeout /t 1 /nobreak >nul
+    timeout /t 0.5 /nobreak >nul
     goto loop
 )
 
 del /q PMCL*.exe
-choice /c a /d a /t 1 >nul
 move /y update.exe PMCL.exe >nul
 
-del /s /q update.bat >nul
-
-echo 更新完成！
 start PMCL.exe
+
+del /q update.bat >nul
 ''')
             
             # 在主线程中退出程序并启动更新批处理
