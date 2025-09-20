@@ -40,10 +40,11 @@ class MinecraftLauncherGUI:
         self.memory = None
 
         # 启动器配置文件
-        if os.path.exists(f'{self.minecraft_directory}'):
-            if not os.path.exists(f'{self.minecraft_directory}\\launcher_profiles.json'):
-                with open(f'{self.minecraft_directory}\\launcher_profiles.json','w') as launcher_profiles:
-                    launcher_profiles.write("""{
+        if not os.path.exists(f'{self.minecraft_directory}'):
+            os.makedirs(self.minecraft_directory)
+        if not os.path.exists(f'{self.minecraft_directory}\\launcher_profiles.json'):
+            with open(f'{self.minecraft_directory}\\launcher_profiles.json','w') as launcher_profiles:
+                launcher_profiles.write("""{
   "profiles":  {
     "PMCL": {
       "icon": "Grass",
@@ -105,7 +106,7 @@ class MinecraftLauncherGUI:
         try:
             # 获取最新版本
             self.download_from_server('https://pmcldownloadserver.dpdns.org/latest_version.txt', 'checkupdate.json')
-            current_version = '0.1.9.9.1'
+            current_version = '1.0.0.0'
             have_later_version = False
 
             with open('checkupdate.json', 'r', encoding='utf-8') as check_update_file:
@@ -115,22 +116,15 @@ class MinecraftLauncherGUI:
             patch_notes = json.loads(check_update).get('patch_notes', '')
             
             # 一级一级版本号比对
-            for version_name in range(0,9,2):
-                    
-                if version_name == 8:
-                    try:
-                        if int(json.loads(check_update).get('latest_version', '0')[version_name]) > int(current_version[version_name]):
-                            have_later_version = True
-                    finally:
-                        break
-                    
-                if int(json.loads(check_update).get('latest_version', '0')[version_name]) > int(current_version[version_name]):
-                    have_later_version = True
+            for i, version_name in enumerate(json.loads(check_update).get('latest_version', '0')):
+                if i % 2 == 0:
+                    if int(version_name) > int(current_version[i]):
+                        have_later_version = True
 
             # 如果存在更新版本，下载它
             if have_later_version:
                 version = json.loads(check_update).get('latest_version')
-                if messagebox.askyesno("提示", f"存在新版本：{version if len(version) <= 7 else version[:-2] + '-hotfix.' + version[-1]}，更新内容：{patch_notes}，是否更新？"):
+                if messagebox.askyesno("提示", f"存在新版本：{version if len(version) <= 5 else version[:-2] + '-hotfix.' + version[-1]}，更新内容：{patch_notes}，是否更新？"):
                     # 创建一个顶层窗口来显示进度条
                     progress_window = tk.Toplevel(self.root)
                     progress_window.title("下载进度")
@@ -351,7 +345,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/0.1.9.9 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/1.0 (Python Minecraft Launcher)'
                 }
             )
             
@@ -1654,6 +1648,47 @@ echo . & pause
 del /f /s /q ".\\cleangame.bat"''')
         os.startfile('cleangame.bat')
 
+    def homepage(self):
+        """作品（作者）主页"""
+        import webbrowser
+
+        # 创建窗口
+        homepage_window = tk.Toplevel(self.root)
+        homepage_window.title("打开作品（作者）主页")
+        homepage_window.geometry(f'300x100+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-100)/2)}')
+        homepage_window.iconbitmap('.\\PMCL.ico')
+        homepage_window.grab_set()
+        homepage_window.resizable(False, False)
+
+        hmain_frame = ttk.Frame(homepage_window, padding="10")
+        hmain_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(hmain_frame, text="选择平台:", width=30).pack(side=tk.TOP, padx=(110, 0))
+
+        homepage_select_var = tk.StringVar(value="官网")
+        ttk.Combobox(hmain_frame, textvariable=homepage_select_var, values=("官网", "Bilibili", "Github", "Github（镜像站）", "Gitcode"), state="readonly", width=20).pack(fill=tk.BOTH)
+
+        def openurl():
+            """打开网站"""
+            if not homepage_select_var:
+                messagebox.showerror("错误", "请选择平台！")
+            elif homepage_select_var.get() == "官网":
+                webbrowser.open("https://pmcldownloadserver.dpdns.org")
+            elif homepage_select_var.get() == "Bilibili":
+                webbrowser.open("https://space.bilibili.com/1191376859")
+            elif homepage_select_var.get() == "Github":
+                webbrowser.open("https://github.com/Dilideguazi/Python_Minecraft_Launcher")
+            elif homepage_select_var.get() == "Github（镜像站）":
+                webbrowser.open("https://bgithub.xyz/Dilideguazi/Python_Minecraft_Launcher")
+            elif homepage_select_var.get() == "Gitcode":
+                webbrowser.open("https://gitcode.com/Dilideguazi/Python_Minecraft_Launcher")
+            homepage_window.destroy()
+
+        ttk.Button(hmain_frame, text="确定", command=openurl).pack(side=tk.RIGHT)
+        ttk.Button(hmain_frame, text="取消", command=homepage_window.destroy).pack(side=tk.RIGHT, padx=(5, 0))
+        
+
+
     # 退出
     def _exit(self):
         if messagebox.askyesno("提示","你是否要退出启动器？"):
@@ -1676,11 +1711,10 @@ del /f /s /q ".\\cleangame.bat"''')
         tools_menu.add_command(label = "重启启动器",command = self.restart)
         tools_menu.add_command(label = "清理游戏垃圾",command = self.cleangame)
 
-        import webbrowser
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
-        help_menu.add_command(label = "作者主页",command = lambda: webbrowser.open('https://space.bilibili.com/1191376859'))
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Beta 1.9.9-hotfix.1\nBilibili @七星五彩 (Github & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -1748,7 +1782,7 @@ del /f /s /q ".\\cleangame.bat"''')
         java_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.use_custom_java_var = tk.BooleanVar(value=self.use_custom_java)
-        self.use_custom_java_checkbox = ttk.Checkbutton(java_frame, text="自动选择Java", variable=self.use_custom_java_var, command=self.toggle_use_custom_java_state).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Checkbutton(java_frame, text="自动选择Java", variable=self.use_custom_java_var, command=self.toggle_use_custom_java_state).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
 
         self.custom_java_frame = ttk.Frame(java_frame, padding="10")
         self.custom_java_frame.grid(row=1, column=0, sticky=tk.W, pady=(0, 5))
@@ -2044,7 +2078,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2291,14 +2325,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2564,7 +2598,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2774,14 +2808,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3050,7 +3084,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3263,14 +3297,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3568,7 +3602,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3778,14 +3812,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4047,7 +4081,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4254,14 +4288,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/0.1.9.9 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4457,7 +4491,7 @@ del /f /s /q ".\\cleangame.bat"''')
             with open('update.bat', 'w') as update:
                 update.write('''
 @echo off
-::%1(start /min cmd.exe /c %0 :&exit)
+%1(start /min cmd.exe /c %0 :&exit)
 setlocal
 
 :loop
