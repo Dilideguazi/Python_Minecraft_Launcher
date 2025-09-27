@@ -22,10 +22,9 @@ class MinecraftLauncherGUI:
 
         # 创建窗口
         self.root = root
-        self.root.title("Python Minecraft Launcher Beta")
+        self.root.title("Python Minecraft Launcher")
         self.root.geometry(f"800x700+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-700)/2)}")
         self.root.iconbitmap('.\\PMCL.ico')
-        self.root.resizable(False, False)
         
         # Minecraft目录
         # self.minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
@@ -84,8 +83,9 @@ class MinecraftLauncherGUI:
         # 检查更新
         self.check_update(False)
 
+
     def download_from_server(self, url, path):
-        """从PMCL下载服务器下载文件"""
+        """从PMCL服务器下载文件"""
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         }
@@ -100,17 +100,21 @@ class MinecraftLauncherGUI:
                 f.write(data)
         except Exception as e:
             messagebox.showerror("错误", f"请求失败: {e}")
-
+    
     def check_update(self, from_menu):
         """检查更新"""
         try:
             # 获取最新版本
-            self.download_from_server('https://pmcldownloadserver.dpdns.org/latest_version.txt', 'checkupdate.json')
-            current_version = '1.0.0.0'
+            headers = {
+                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+            }
+            req = urllib.request.Request('https://pmcldownloadserver.dpdns.org/latest_version.json', headers=headers)
+            with urllib.request.urlopen(req) as response:
+                check_update = response.read().decode('utf-8')
+                print(check_update)
+            
+            current_version = '1.0.1.0'
             have_later_version = False
-
-            with open('checkupdate.json', 'r', encoding='utf-8') as check_update_file:
-                check_update = check_update_file.read()
 
             # 获取更新日志
             patch_notes = json.loads(check_update).get('patch_notes', '')
@@ -124,7 +128,7 @@ class MinecraftLauncherGUI:
             # 如果存在更新版本，下载它
             if have_later_version:
                 version = json.loads(check_update).get('latest_version')
-                if messagebox.askyesno("提示", f"存在新版本：{version if len(version) <= 5 else version[:-2] + '-hotfix.' + version[-1]}，更新内容：{patch_notes}，是否更新？"):
+                if messagebox.askyesno("提示", f"存在新版本：{version[:-2] if not int(version[6]) else version[:-2] + '-hotfix.' + version[-1]}，更新内容：{patch_notes}，是否更新？"):
                     # 创建一个顶层窗口来显示进度条
                     progress_window = tk.Toplevel(self.root)
                     progress_window.title("下载进度")
@@ -179,9 +183,9 @@ class MinecraftLauncherGUI:
 
             elif from_menu:
                 messagebox.showinfo("提示", "已是最新版本")
-            os.remove('checkupdate.json')
         except Exception as e:
             messagebox.showerror("错误", f"检查或更新新版本失败：{e}")
+
         
     def create_widgets(self):
         # 主框架
@@ -323,7 +327,7 @@ class MinecraftLauncherGUI:
             auth_url = "https://littleskin.cn/api/yggdrasil/authserver/authenticate"
             
             # 构造认证请求数据
-            client_token_str = str(uuid.uuid4().hex)
+            client_token_str = uuid.uuid4().hex
             
             auth_data = {
                 "agent": {
@@ -1074,13 +1078,13 @@ class MinecraftLauncherGUI:
             # 如果选择了多个模组，使用批量操作
             self.batch_toggle_mods()
                 
-    def rename_version(self, version, arg_new_name):
+    def rename_version(self, version, specify_name):
         """重命名指定版本"""
-        if arg_new_name:
-            new_name = arg_new_name
-        else:
-            # 弹出输入框获取新版本名
+        # 弹出输入框获取新版本名
+        if not specify_name:
             new_name = tk.simpledialog.askstring("重命名版本", "请输入新的版本名称:", initialvalue=version)
+        else:
+            new_name = ''.join(specify_name)
 
         # 检查用户是否取消或输入空值
         if not new_name or new_name == version:
@@ -1115,25 +1119,25 @@ class MinecraftLauncherGUI:
                 if os.path.exists(old_json):
                     os.rename(old_json, new_json)
                     
-                    # 更新.json文件中的版本ID
-                    try:
-                        with open(new_json, 'r', encoding='utf-8') as f:
-                            json_data = json.load(f)
+                # 更新.json文件中的版本ID
+                try:
+                    with open(new_json, 'r', encoding='utf-8') as f:
+                        json_data = json.load(f)
                         
-                        # 更新版本ID
-                        if 'id' in json_data and json_data['id'] == version:
-                            json_data['id'] = new_name
+                    # 更新版本ID
+                    if 'id' in json_data and json_data['id'] == version:
+                        json_data['id'] = new_name
                             
-                        # 更新继承自的版本ID（如果有）
-                        if 'inheritsFrom' in json_data and json_data['inheritsFrom'] == version:
-                            json_data['inheritsFrom'] = new_name
+                    # 更新继承自的版本ID（如果有）
+                    if 'inheritsFrom' in json_data and json_data['inheritsFrom'] == version:
+                        json_data['inheritsFrom'] = new_name
                         
-                        # 保存更新后的.json文件
-                        with open(new_json, 'w', encoding='utf-8') as f:
-                            json.dump(json_data, f, indent=2, ensure_ascii=False)
-                    except Exception as e:
-                        # 如果更新.json文件失败，仅记录日志但不中断重命名过程
-                        self.log(f"警告: 更新版本配置文件失败: {str(e)}")
+                    # 保存更新后的.json文件
+                    with open(new_json, 'w', encoding='utf-8') as f:
+                        json.dump(json_data, f, indent=2, ensure_ascii=False)
+                except Exception as e:
+                    # 如果更新.json文件失败，仅记录日志但不中断重命名过程
+                    self.log(f"警告: 更新版本配置文件失败: {str(e)}")
 
                 # 重新加载版本列表
                 self.load_installed_versions()
@@ -1149,8 +1153,8 @@ class MinecraftLauncherGUI:
                     if self.launch_version_var.get() == version:
                         self.launch_version_var.set(new_name)
                 
-                # 当安装整合包时被调用，不显示弹窗
-                if arg_new_name:
+                # 当安装整合包时不显示弹窗
+                if specify_name:
                     return
                 messagebox.showinfo("成功", f"版本 {version} 已重命名为 {new_name}")
             else:
@@ -1181,7 +1185,6 @@ class MinecraftLauncherGUI:
             self.isolation_dir = f'{self.minecraft_directory}\\versions\\{version}'
         else:
             self.isolation_dir = ''.join(self.minecraft_directory)
-        self.isolation_var.set(os.path.exists(f'{self.minecraft_directory}\\versions\\{version}\\config'))
         
     def toggle_version_isolation(self, version):
         """切换版本隔离状态"""
@@ -1638,13 +1641,12 @@ class MinecraftLauncherGUI:
 
     # 清理游戏垃圾
     def cleangame(self):
-        with open('cleangame.bat', 'w') as bat_file:
-            bat_file.write('''@echo off
-echo 正在清理游戏垃圾，请稍等……
+        with open('cleangame.bat', 'w') as cleangame_file:
+            cleangame_file.write('''@echo off
+%1(start /min cmd.exe /c %0 :& exit)
 del /f /s /q ".\\*.log"
-rd /s /q ".\\logs"
-echo 清理游戏垃圾完成！
-echo . & pause
+del /f /s /q ".\\*.log.gz"
+rd /s /q ".\\minecraft\\logs"
 del /f /s /q ".\\cleangame.bat"''')
         os.startfile('cleangame.bat')
 
@@ -1714,7 +1716,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Prerelease1.0-0926\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -3906,10 +3908,15 @@ del /f /s /q ".\\cleangame.bat"''')
         self.modpack_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
         self.modpack_window.iconbitmap(".\\PMCL.ico")
         self.modpack_window.resizable(False, False)
+
+        # 创建选项卡
+        notebook = ttk.Notebook(self.modpack_window)
+        notebook.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # 整合包下载窗口主框架
-        modpack_main_frame = ttk.Frame(self.modpack_window, padding="10")
+        modpack_main_frame = ttk.Frame(notebook, padding="10")
         modpack_main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        notebook.add(modpack_main_frame, text="下载整合包")
         
         # 整合包搜索框架
         search_frame = ttk.LabelFrame(modpack_main_frame, text="搜索整合包", padding="10")
@@ -3985,6 +3992,40 @@ del /f /s /q ".\\cleangame.bat"''')
         results_frame.rowconfigure(0, weight=1)
         modpack_log_frame.columnconfigure(0, weight=1)
         modpack_log_frame.rowconfigure(0, weight=1)
+
+        # 安装本地整合包
+        modpack_install_frame = ttk.Frame(notebook, padding="10")
+        modpack_install_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        notebook.add(modpack_install_frame, text="安装本地整合包")
+
+        ttk.Label(modpack_install_frame, text="安装本地整合包", font=("微软雅黑", 18)).grid(row=0, column=0, columnspan=2)
+
+        modpack_choose_frame = ttk.LabelFrame(modpack_install_frame, text="本地整合包文件", padding="10")
+        modpack_choose_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        ttk.Label(modpack_choose_frame, text="选择本地Modrinth(.mrpack)格式整合包文件:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        self.modpack_var = tk.StringVar()
+        self.modpack_entry = ttk.Entry(modpack_choose_frame, textvariable=self.modpack_var, width=30)
+        self.modpack_entry.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 5))
+        self.modpack_button = ttk.Button(modpack_choose_frame, text="浏览", command=self.browse_offline_modpack_path)
+        self.modpack_button.grid(row=1, column=2, padx=(5, 0), pady=(0, 5))
+
+        self.modpack_install_button = ttk.Button(modpack_install_frame, text="安装整合包", command=lambda: self.install_modpack(self.modpack_var.get()))
+        self.modpack_install_button.grid(row=2, column=0, columnspan=2)
+
+        # 日志显示区域
+        modpack_install_log_frame = ttk.LabelFrame(modpack_install_frame, text="日志", padding="10")
+        modpack_install_log_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        
+        self.modpack_install_log_text = scrolledtext.ScrolledText(modpack_install_log_frame, height=10, state=tk.DISABLED)
+        self.modpack_install_log_text.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # 配置网格权重
+        modpack_install_frame.columnconfigure(0, weight=2)
+        modpack_install_frame.columnconfigure(1, weight=2)
+        modpack_choose_frame.columnconfigure(0, weight=1)
+        modpack_choose_frame.columnconfigure(1, weight=1)
+        modpack_install_log_frame.columnconfigure(0, weight=1)
         
         # 加载Minecraft版本
         self.load_modpack_version_list()
@@ -3992,9 +4033,18 @@ del /f /s /q ".\\cleangame.bat"''')
         # 绑定Treeview选择事件
         self.modpacks_tree.bind('<<TreeviewSelect>>', self.on_modpack_select)
 
+    def browse_offline_modpack_path(self):
+        """浏览本地整合包路径"""
+        offline_modpack = filedialog.askopenfilename(
+            title="选择Modrinth整合包文件",
+            filetypes=[("Modrinth Modpack", "*.mrpack"), ("All Files", "*.*")]
+        )
+        if offline_modpack:
+            self.modpack_var.set(offline_modpack)
+
     def load_modpack_version_list(self):
         """加载Minecraft版本列表"""
-        self.log("正在获取版本列表...")
+        self.modpack_log("正在获取版本列表...")
         try:
             # 获取所有可用版本
             versions = minecraft_launcher_lib.utils.get_version_list()
@@ -4026,6 +4076,10 @@ del /f /s /q ".\\cleangame.bat"''')
         self.modpack_log_text.insert(tk.END, message + "\n")
         self.modpack_log_text.config(state=tk.DISABLED)
         self.modpack_log_text.see(tk.END)
+        self.modpack_install_log_text.config(state=tk.NORMAL)
+        self.modpack_install_log_text.insert(tk.END, message + "\n")
+        self.modpack_install_log_text.config(state=tk.DISABLED)
+        self.modpack_install_log_text.see(tk.END)
         
     def search_modpacks(self):
         """搜索整合包"""
@@ -4159,6 +4213,11 @@ del /f /s /q ".\\cleangame.bat"''')
         
         # 禁用下载按钮防止重复点击
         self.download_modpack_button.config(state=tk.DISABLED)
+
+        # 询问版本名称
+        self.version_name = ''
+        while not self.version_name:
+            self.version_name = tk.simpledialog.askstring("命名版本", "请为安装的整合包命名")
         
         # 在新线程中执行下载操作
         download_thread = threading.Thread(target=self._download_modpack_thread, args=(project_id,))
@@ -4397,7 +4456,6 @@ del /f /s /q ".\\cleangame.bat"''')
                     try:
                         minecraft_launcher_lib.install.install_minecraft_version(game_version, self.minecraft_directory)
                         self.modpack_log(f"Minecraft {game_version} 安装完成")
-                        self.rename_version(game_version, project_data.get('title', '未知整合包'))
                     except Exception as e:
                         self.modpack_log(f"安装Minecraft版本失败: {str(e)}")
             
@@ -4419,7 +4477,6 @@ del /f /s /q ".\\cleangame.bat"''')
                             for version in self.launch_version_combobox['values']:
                                 if (game_version in version) and ('forge' in version):
                                     installed_version = ''.join(version)
-                            self.rename_version(installed_version, project_data.get('title', '未知整合包'))
                         except Exception as e:
                             self.modpack_log(f"安装Forge失败: {str(e)}")
             elif modloader == 'fabric':
@@ -4431,9 +4488,20 @@ del /f /s /q ".\\cleangame.bat"''')
                         try:
                             minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory)
                             self.modpack_log(f"Fabric Loader {fabric_loader_version} 安装完成")
-                            self.rename_version(fabric_id, project_data.get('title', '未知整合包'))
                         except Exception as e:
                             self.modpack_log(f"安装Fabric失败: {str(e)}")
+
+            if messagebox.askyesno("提示", "是否为安装的整合包启用版本隔离？"):
+                if not modloader:
+                    isolation_dir = os.path.join(self.minecraft_directory, 'versions', game_version)
+                else:
+                    isolation_dir = os.path.join(self.minecraft_directory, 'versions', installed_version if modloader == 'forge' else fabric_id)
+                os.makedirs(os.path.join(isolation_dir, 'config'), exist_ok=True)
+            else:
+                if not modloader:
+                    isolation_dir = ''.join(self.minecraft_directory)
+                else:
+                    isolation_dir = ''.join(self.minecraft_directory)
             
             # 下载依赖文件（模组、资源包等）
             self.modpack_log("正在下载整合包依赖文件...")
@@ -4446,7 +4514,7 @@ del /f /s /q ".\\cleangame.bat"''')
                     download_url = downloads[0]
                     
                     # 确定保存路径
-                    save_path = os.path.join(self.minecraft_directory, file_path)
+                    save_path = os.path.join(isolation_dir, file_path)
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
                     
                     # 下载文件
@@ -4464,9 +4532,14 @@ del /f /s /q ".\\cleangame.bat"''')
                     for file in files:
                         src_path = os.path.join(root, file)
                         rel_path = os.path.relpath(src_path, overrides_dir)
-                        dst_path = os.path.join(self.minecraft_directory, rel_path)
+                        dst_path = os.path.join(isolation_dir, rel_path)
                         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
                         shutil.copy2(src_path, dst_path)
+
+            if not modloader:
+                self.rename_version(game_version, self.version_name)
+            else:
+                self.rename_version(installed_version if modloader == 'forge' else fabric_id, self.version_name)
             
             # 清理临时文件
             shutil.rmtree(temp_dir)
@@ -4484,6 +4557,166 @@ del /f /s /q ".\\cleangame.bat"''')
             # 重新启用下载按钮
             self.modpack_window.after(0, lambda: self.download_modpack_button.config(state=tk.NORMAL))
 
+    def install_modpack(self, modpack_path):
+        """安装本地整合包"""
+        self.version_name = ''
+        while not self.version_name:
+            self.version_name = tk.simpledialog.askstring("命名版本", "请为安装的整合包命名")
+        install_modpack_thread = threading.Thread(target=self._install_modpack_thread, args=(modpack_path,))
+        install_modpack_thread.daemon = True
+        install_modpack_thread.start()
+
+    def _install_modpack_thread(self, modpack_path):
+        """在后台线程中安装本地整合包"""
+        try:
+            if not modpack_path:
+                self.modpack_log("请指定整合包文件！")
+                messagebox.showerror("错误", "请指定整合包文件！")
+                return
+            
+            import tempfile
+            import zipfile
+            import shutil
+
+            # 禁用按钮防止重复安装
+            self.modpack_install_button.config(state=tk.DISABLED)
+
+            # 解压整合包
+            extract_dir = tempfile.mkdtemp()
+            
+            with zipfile.ZipFile(modpack_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+            
+            self.modpack_log("整合包解压完成，正在处理...")
+            
+            # 读取modrinth.index.json文件
+            index_file = os.path.join(extract_dir, 'modrinth.index.json')
+            if not os.path.exists(index_file):
+                self.modpack_log("错误: 未找到modrinth.index.json文件")
+                shutil.rmtree(extract_dir)
+                return
+            
+            with open(index_file, 'r', encoding='utf-8') as f:
+                index_data = json.load(f)
+            
+            # 获取游戏版本和加载器信息
+            game_version = index_data.get('dependencies', {}).get('minecraft', '未知')
+            modloader = None
+            if 'forge' in index_data.get('dependencies', {}):
+                modloader = 'forge'
+            elif 'fabric-loader' in index_data.get('dependencies', {}):
+                modloader = 'fabric'
+            
+            self.modpack_log(f"整合包信息: Minecraft {game_version}, 加载器: {modloader if modloader else '原版'}")
+            
+            # 检查是否需要安装游戏版本
+            if not modloader:
+                if not os.path.exists(f"{self.minecraft_directory}\\versions\\{game_version}"):
+                    self.modpack_log(f"需要安装Minecraft {game_version}...")
+                    try:
+                        minecraft_launcher_lib.install.install_minecraft_version(game_version, self.minecraft_directory)
+                        self.modpack_log(f"Minecraft {game_version} 安装完成")
+                    except Exception as e:
+                        self.modpack_log(f"安装Minecraft版本失败: {str(e)}")
+            
+            # 检查是否需要安装模组加载器
+            if modloader == 'forge':
+                forge_version = index_data.get('dependencies', {}).get('forge')
+                if forge_version:
+                    for version in minecraft_launcher_lib.forge.list_forge_versions():
+                        if game_version in version and forge_version in version:
+                            forge_id = version
+                            break
+                    
+                    if not os.path.exists(f"{self.minecraft_directory}\\versions\\{forge_id}"):
+                        self.modpack_log(f"需要安装Forge {forge_version}...")
+                        try:
+                            minecraft_launcher_lib.forge.install_forge_version(forge_id, self.minecraft_directory)
+                            self.modpack_log(f"Forge {forge_version} 安装完成")
+                            self.load_installed_versions()
+                            for version in self.launch_version_combobox['values']:
+                                if (game_version in version) and ('forge' in version):
+                                    installed_version = ''.join(version)
+                        except Exception as e:
+                            self.modpack_log(f"安装Forge失败: {str(e)}")
+            elif modloader == 'fabric':
+                fabric_loader_version = index_data.get('dependencies', {}).get('fabric-loader')
+                if fabric_loader_version:
+                    fabric_id = f"fabric-loader-{fabric_loader_version}-{game_version}"
+                    if not os.path.exists(f"{self.minecraft_directory}\\versions\\{fabric_id}"):
+                        self.modpack_log(f"需要安装Fabric Loader {fabric_loader_version}...")
+                        try:
+                            minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory)
+                            self.modpack_log(f"Fabric Loader {fabric_loader_version} 安装完成")
+                        except Exception as e:
+                            self.modpack_log(f"安装Fabric失败: {str(e)}")
+            
+            # 下载依赖文件（模组、资源包等）
+            self.modpack_log("正在下载整合包依赖文件...")
+
+            if self.modpack_window.after(0, messagebox.askyesno("提示", "是否为安装的整合包启用版本隔离？")):
+                if not modloader:
+                    isolation_dir = os.path.join(self.minecraft_directory, 'versions', game_version)
+                else:
+                    isolation_dir = os.path.join(self.minecraft_directory, 'versions', installed_version if modloader == 'forge' else fabric_id)
+                os.makedirs(os.path.join(isolation_dir, 'config'), exist_ok=True)
+            else:
+                if not modloader:
+                    isolation_dir = ''.join(self.minecraft_directory)
+                else:
+                    isolation_dir = ''.join(self.minecraft_directory)
+
+            for file_info in index_data.get('files', []):
+                file_path = file_info.get('path', '')
+                downloads = file_info.get('downloads', [])
+                
+                if downloads:
+                    download_url = downloads[0]
+                    
+                    # 确定保存路径                    
+                    save_path = os.path.join(isolation_dir, file_path)
+                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                    
+                    # 下载文件
+                    try:
+                        urllib.request.urlretrieve(download_url, save_path)                        
+                        self.modpack_log(f"已下载: {file_path}")
+                    except Exception as e:
+                        self.modpack_log(f"下载 {file_path} 失败: {str(e)}")
+            
+            # 复制overrides文件夹（如果有）
+            overrides_dir = os.path.join(extract_dir, 'overrides')
+            if os.path.exists(overrides_dir):
+                self.modpack_log("正在复制overrides文件...")
+                for root, dirs, files in os.walk(overrides_dir):
+                    for file in files:
+                        src_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(src_path, overrides_dir)
+                        dst_path = os.path.join(isolation_dir, rel_path)
+                        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                        shutil.copy2(src_path, dst_path)
+            
+            if not modloader:
+                self.rename_version(game_version, self.version_name)
+            else:
+                self.rename_version(installed_version if modloader == 'forge' else fabric_id, self.version_name)
+
+            # 清理临时文件
+            shutil.rmtree(extract_dir)
+            
+            self.modpack_log("整合包安装完成!")
+            self.modpack_window.after(0, lambda: messagebox.showinfo("成功", "整合包安装完成!"))
+
+            # 重新加载已安装版本列表
+            self.load_installed_versions()
+            
+        except Exception as e:
+            self.modpack_log(f"整合包安装失败: {str(e)}")
+            messagebox.showerror("错误", f"整合包安装失败: {str(e)}")
+        finally:
+            # 重新启用安装按钮
+            self.modpack_install_button.config(state=tk.NORMAL)
+
     def install_update(self):
         """安装更新"""
         try:
@@ -4491,12 +4724,14 @@ del /f /s /q ".\\cleangame.bat"''')
             with open('update.bat', 'w') as update:
                 update.write('''
 @echo off
-%1(start /min cmd.exe /c %0 :&exit)
 setlocal
+                            
+echo 正在更新启动器
 
 :loop
 tasklist /fi "imagename eq PMCL.exe" /fo csv 2>nul | find /i "PMCL.exe" >nul
 if not errorlevel 1 (
+    echo 等待启动器关闭. . .
     timeout /t 0.5 /nobreak >nul
     goto loop
 )
