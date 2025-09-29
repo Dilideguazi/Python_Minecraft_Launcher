@@ -111,9 +111,8 @@ class MinecraftLauncherGUI:
             req = urllib.request.Request('https://pmcldownloadserver.dpdns.org/latest_version.json', headers=headers)
             with urllib.request.urlopen(req) as response:
                 check_update = response.read().decode('utf-8')
-                print(check_update)
             
-            current_version = '1.0.1.0'
+            current_version = '1.0.1.1'
             have_later_version = False
 
             # 获取更新日志
@@ -1657,7 +1656,7 @@ del /f /s /q ".\\cleangame.bat"''')
         # 创建窗口
         homepage_window = tk.Toplevel(self.root)
         homepage_window.title("打开作品（作者）主页")
-        homepage_window.geometry(f'300x100+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-100)/2)}')
+        homepage_window.geometry(f'300x110+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-110)/2)}')
         homepage_window.iconbitmap('.\\PMCL.ico')
         homepage_window.grab_set()
         homepage_window.resizable(False, False)
@@ -1665,10 +1664,10 @@ del /f /s /q ".\\cleangame.bat"''')
         hmain_frame = ttk.Frame(homepage_window, padding="10")
         hmain_frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(hmain_frame, text="选择平台:", width=30).pack(side=tk.TOP, padx=(110, 0))
+        ttk.Label(hmain_frame, text="选择平台:", width=30, anchor="center", justify="center").pack(fill=tk.BOTH, pady=(0, 5))
 
         homepage_select_var = tk.StringVar(value="官网")
-        ttk.Combobox(hmain_frame, textvariable=homepage_select_var, values=("官网", "Bilibili", "Github", "Github（镜像站）", "Gitcode"), state="readonly", width=20).pack(fill=tk.BOTH)
+        ttk.Combobox(hmain_frame, textvariable=homepage_select_var, values=("官网", "Bilibili", "Github", "Github（镜像站）", "Gitcode"), state="readonly", width=20).pack(fill=tk.BOTH, pady=(0, 10))
 
         def openurl():
             """打开网站"""
@@ -1716,7 +1715,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion Prerelease1.0-0926\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.1-hotfix.1\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -1766,7 +1765,6 @@ del /f /s /q ".\\cleangame.bat"''')
         """创建设置窗口"""
         self.settings_window = tk.Toplevel(self.root)
         self.settings_window.title("设置")
-        self.settings_window.geometry(f"500x530+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-530)/2)}")
         self.settings_window.iconbitmap(".\\PMCL.ico")
         self.settings_window.grab_set()
         self.settings_window.resizable(False, False)
@@ -1842,6 +1840,9 @@ del /f /s /q ".\\cleangame.bat"''')
         # 加载设置
         self.load_settings()
 
+        # 根据是否使用自定义Java调整窗口大小
+        self.settings_window.geometry(f"500x{450 if self.use_custom_java_var.get() else 540}+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-(450 if self.use_custom_java_var.get() else 540))/2)}")
+
         if self.use_custom_java_var.get():
             self.use_java_var.set(self.use_java)
             self.custom_java_frame.grid_remove()
@@ -1892,10 +1893,12 @@ del /f /s /q ".\\cleangame.bat"''')
             self.use_java_checkbox.config(state=tk.NORMAL)
             self.use_java_var.set(self.use_java)
             self.custom_java_frame.grid_remove()
+            self.settings_window.geometry(f"500x450+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-450)/2)}")
         else:
             self.use_java_checkbox.config(state=tk.DISABLED)
             self.use_java_var.set(True)
             self.custom_java_frame.grid()
+            self.settings_window.geometry(f"500x540+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-540)/2)}")
             
     # 创建数据包下载窗口
     def create_datapack_download_widgets(self):
@@ -4217,7 +4220,12 @@ del /f /s /q ".\\cleangame.bat"''')
         # 询问版本名称
         self.version_name = ''
         while not self.version_name:
-            self.version_name = tk.simpledialog.askstring("命名版本", "请为安装的整合包命名")
+            self.version_name = tk.simpledialog.askstring("命名版本", "请为安装的整合包命名", initialvalue=modpack_name)
+        import re
+        if re.search(r'[\\/:*?"<>|]', self.version_name):
+            messagebox.showerror("错误", "非法的版本名称")
+            self.download_modpack_button.config(state=tk.NORMAL)
+            return
         
         # 在新线程中执行下载操作
         download_thread = threading.Thread(target=self._download_modpack_thread, args=(project_id,))
@@ -4559,9 +4567,16 @@ del /f /s /q ".\\cleangame.bat"''')
 
     def install_modpack(self, modpack_path):
         """安装本地整合包"""
+        if os.path.splitext(modpack_path)[-1].lower() != '.mrpack':
+            messagebox.showerror("错误", "请选择一个有效的Modrinth整合包(.mrpack)文件")
+            return
         self.version_name = ''
         while not self.version_name:
-            self.version_name = tk.simpledialog.askstring("命名版本", "请为安装的整合包命名")
+            self.version_name = tk.simpledialog.askstring("命名版本", "请为安装的整合包命名", initialvalue=os.path.splitext(os.path.basename(modpack_path))[0])
+        import re
+        if re.search(r'[\\/:*?"<>|]', self.version_name):
+            messagebox.showerror("错误", "非法的版本名称")
+            return
         install_modpack_thread = threading.Thread(target=self._install_modpack_thread, args=(modpack_path,))
         install_modpack_thread.daemon = True
         install_modpack_thread.start()
