@@ -112,7 +112,7 @@ class MinecraftLauncherGUI:
             with urllib.request.urlopen(req) as response:
                 check_update = response.read().decode('utf-8')
             
-            current_version = '1.0.1.2'
+            current_version = '1.0.2.0'
             have_later_version = False
 
             # 获取更新日志
@@ -348,7 +348,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/1.0.1 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/1.0.2 (Python Minecraft Launcher)'
                 }
             )
             
@@ -1521,6 +1521,9 @@ class MinecraftLauncherGUI:
         # 加载版本列表
         self.load_version_list()
 
+        # 绑定回车键下载
+        self.dwidgets.bind("<Return>", lambda event: self.install_version())
+
     def load_version_list(self):
         """加载Minecraft版本列表"""
         self.log("正在获取版本列表...")
@@ -1715,7 +1718,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.1-hotfix.2\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.2\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -1994,9 +1997,12 @@ del /f /s /q ".\\cleangame.bat"''')
         # 绑定Treeview选择事件
         self.datapacks_tree.bind('<<TreeviewSelect>>', self.on_datapack_select)
 
+        # 绑定回车键下载
+        self.datapack_window.bind("<Return>", lambda event: self.search_datapacks())
+
     def load_datapack_version_list(self):
         """加载Minecraft版本列表"""
-        self.log("正在获取版本列表...")
+        self.datapack_log("正在获取版本列表...")
         try:
             # 获取所有可用版本
             versions = minecraft_launcher_lib.utils.get_version_list()
@@ -2083,7 +2089,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2330,14 +2336,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2514,9 +2520,12 @@ del /f /s /q ".\\cleangame.bat"''')
         # 绑定Treeview选择事件
         self.resourcepacks_tree.bind('<<TreeviewSelect>>', self.on_resourcepack_select)
 
+        # 绑定回车键下载
+        self.resourcepack_window.bind("<Return>", lambda event: self.search_resourcepacks())
+
     def load_resourcepack_version_list(self):
         """加载Minecraft版本列表"""
-        self.log("正在获取版本列表...")
+        self.resourcepack_log("正在获取版本列表...")
         try:
             # 获取所有可用版本
             versions = minecraft_launcher_lib.utils.get_version_list()
@@ -2603,7 +2612,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2813,14 +2822,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3000,9 +3009,12 @@ del /f /s /q ".\\cleangame.bat"''')
         # 绑定Treeview选择事件
         self.mods_tree.bind('<<TreeviewSelect>>', self.on_mod_select)
 
+        # 绑定回车键下载
+        self.mod_window.bind("<Return>", lambda event: self.search_mods())
+
     def load_mod_version_list(self):
         """加载Minecraft版本列表"""
-        self.log("正在获取版本列表...")
+        self.mod_log("正在获取版本列表...")
         try:
             # 获取所有可用版本
             versions = minecraft_launcher_lib.utils.get_version_list()
@@ -3089,7 +3101,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3302,14 +3314,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3518,9 +3530,12 @@ del /f /s /q ".\\cleangame.bat"''')
         # 绑定Treeview选择事件
         self.shaders_tree.bind('<<TreeviewSelect>>', self.on_shader_select)
 
+        # 绑定回车键下载
+        self.shader_window.bind("<Return>", lambda event: self.search_shaders())
+
     def load_shader_version_list(self):
         """加载Minecraft版本列表"""
-        self.log("正在获取版本列表...")
+        self.shader_log("正在获取版本列表...")
         try:
             # 获取所有可用版本
             versions = minecraft_launcher_lib.utils.get_version_list()
@@ -3607,7 +3622,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3817,14 +3832,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4014,7 +4029,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.modpack_button.grid(row=1, column=2, padx=(5, 0), pady=(0, 5))
 
         self.modpack_install_button = ttk.Button(modpack_install_frame, text="安装整合包", command=lambda: self.install_modpack(self.modpack_var.get()))
-        self.modpack_install_button.grid(row=2, column=0, columnspan=2)
+        self.modpack_install_button.grid(row=2, column=0, columnspan=2, pady=(10, 0))
 
         # 日志显示区域
         modpack_install_log_frame = ttk.LabelFrame(modpack_install_frame, text="日志", padding="10")
@@ -4035,6 +4050,9 @@ del /f /s /q ".\\cleangame.bat"''')
         
         # 绑定Treeview选择事件
         self.modpacks_tree.bind('<<TreeviewSelect>>', self.on_modpack_select)
+
+        # 绑定回车键下载
+        self.modpack_window.bind("<Return>", lambda event: self.search_modpacks())
 
     def browse_offline_modpack_path(self):
         """浏览本地整合包路径"""
@@ -4138,7 +4156,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4355,14 +4373,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
