@@ -112,7 +112,7 @@ class MinecraftLauncherGUI:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.0.2.2'
+            current_version = '1.0.2.3'
             have_later_version = False
 
             # 获取更新日志
@@ -132,7 +132,7 @@ class MinecraftLauncherGUI:
                     progress_window = tk.Toplevel(self.root)
                     progress_window.title("下载进度")
                     progress_window.geometry("300x100")
-                    progress_window.iconbitmap('.\\PMCL.ico')
+                    progress_window.iconbitmap(self.resource_path('PMCL.ico'))
                     progress_window.resizable(False, False)
                     progress_window.transient(self.root)
                     progress_window.grab_set()
@@ -419,7 +419,7 @@ class MinecraftLauncherGUI:
         dialog.title("选择角色")
         dialog.transient(self.root)
         dialog.grab_set()
-        dialog.iconbitmap('.\\PMCL.ico')
+        dialog.iconbitmap(self.resource_path('PMCL.ico'))
         
         # 居中显示
         dialog.update_idletasks()
@@ -505,7 +505,7 @@ class MinecraftLauncherGUI:
         self.version_settings_window = tk.Toplevel(self.root)
         self.version_settings_window.title(f"{version} 设置")
         self.version_settings_window.geometry(f"300x400+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-400)/2)}")
-        self.version_settings_window.iconbitmap(".\\PMCL.ico")
+        self.version_settings_window.iconbitmap(self.resource_path('PMCL.ico'))
         self.version_settings_window.grab_set()
         self.version_settings_window.resizable(False, False)
         
@@ -585,7 +585,7 @@ class MinecraftLauncherGUI:
         self.mod_manager_window = tk.Toplevel(self.root)
         self.mod_manager_window.title(f"{version} 模组管理")
         self.mod_manager_window.geometry(f"800x550+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-550)/2)}")
-        self.mod_manager_window.iconbitmap(".\\PMCL.ico")
+        self.mod_manager_window.iconbitmap(self.resource_path('PMCL.ico'))
         self.mod_manager_window.grab_set()
         self.mod_manager_window.resizable(False, False)
         
@@ -1482,7 +1482,7 @@ class MinecraftLauncherGUI:
         self.dwidgets = tk.Toplevel(self.root)
         self.dwidgets.title("下载版本")
         self.dwidgets.geometry(f"500x300+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-300)/2)}")
-        self.dwidgets.iconbitmap(".\\PMCL.ico")
+        self.dwidgets.iconbitmap(self.resource_path('PMCL.ico'))
         self.dwidgets.grab_set()
         self.dwidgets.resizable(False, False)
         
@@ -1659,7 +1659,7 @@ del /f /s /q ".\\cleangame.bat"''')
         homepage_window = tk.Toplevel(self.root)
         homepage_window.title("打开作品（作者）主页")
         homepage_window.geometry(f'300x110+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-110)/2)}')
-        homepage_window.iconbitmap('.\\PMCL.ico')
+        homepage_window.iconbitmap(self.resource_path('PMCL.ico'))
         homepage_window.grab_set()
         homepage_window.resizable(False, False)
 
@@ -1716,7 +1716,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.2-hotfix.2\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.2-hotfix.3\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -1766,7 +1766,7 @@ del /f /s /q ".\\cleangame.bat"''')
         """创建设置窗口"""
         self.settings_window = tk.Toplevel(self.root)
         self.settings_window.title("设置")
-        self.settings_window.iconbitmap(".\\PMCL.ico")
+        self.settings_window.iconbitmap(self.resource_path('PMCL.ico'))
         self.settings_window.grab_set()
         self.settings_window.resizable(False, False)
         
@@ -1907,7 +1907,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.datapack_window = tk.Toplevel(self.root)
         self.datapack_window.title("数据包下载")
         self.datapack_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.datapack_window.iconbitmap(".\\PMCL.ico")
+        self.datapack_window.iconbitmap(self.resource_path('PMCL.ico'))
         self.datapack_window.resizable(False, False)
         
         # 数据包下载窗口主框架
@@ -2177,7 +2177,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.datapack_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x550+{int((self.datapack_window.winfo_screenwidth()-800)/2)}+{int((self.datapack_window.winfo_screenheight()-550)/2)}")
-        version_window.iconbitmap(".\\PMCL.ico")
+        version_window.iconbitmap(self.resource_path('PMCL.ico'))
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -2430,7 +2430,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.resourcepack_window = tk.Toplevel(self.root)
         self.resourcepack_window.title("资源包下载")
         self.resourcepack_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.resourcepack_window.iconbitmap(".\\PMCL.ico")
+        self.resourcepack_window.iconbitmap(self.resource_path('PMCL.ico'))
         self.resourcepack_window.resizable(False, False)
         
         # 资源包下载窗口主框架
@@ -2700,7 +2700,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.resourcepack_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x500+{int((self.resourcepack_window.winfo_screenwidth()-800)/2)}+{int((self.resourcepack_window.winfo_screenheight()-500)/2)}")
-        version_window.iconbitmap(".\\PMCL.ico")
+        version_window.iconbitmap(self.resource_path('PMCL.ico'))
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -2912,7 +2912,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.mod_window = tk.Toplevel(self.root)
         self.mod_window.title("Mod下载")
         self.mod_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.mod_window.iconbitmap(".\\PMCL.ico")
+        self.mod_window.iconbitmap(self.resource_path('PMCL.ico'))
         self.mod_window.resizable(False, False)
         
         # Mod下载窗口主框架
@@ -3189,7 +3189,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.mod_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x500+{int((self.mod_window.winfo_screenwidth()-800)/2)}+{int((self.mod_window.winfo_screenheight()-500)/2)}")
-        version_window.iconbitmap(".\\PMCL.ico")
+        version_window.iconbitmap(self.resource_path('PMCL.ico'))
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -3440,7 +3440,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.shader_window = tk.Toplevel(self.root)
         self.shader_window.title("光影包下载")
         self.shader_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.shader_window.iconbitmap(".\\PMCL.ico")
+        self.shader_window.iconbitmap(self.resource_path('PMCL.ico'))
         self.shader_window.resizable(False, False)
         
         # 光影包下载窗口主框架
@@ -3710,7 +3710,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.shader_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x500+{int((self.shader_window.winfo_screenwidth()-800)/2)}+{int((self.shader_window.winfo_screenheight()-500)/2)}")
-        version_window.iconbitmap(".\\PMCL.ico")
+        version_window.iconbitmap(self.resource_path('PMCL.ico'))
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -3922,7 +3922,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.modpack_window = tk.Toplevel(self.root)
         self.modpack_window.title("整合包下载")
         self.modpack_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.modpack_window.iconbitmap(".\\PMCL.ico")
+        self.modpack_window.iconbitmap(self.resource_path('PMCL.ico'))
         self.modpack_window.resizable(False, False)
 
         # 创建选项卡
@@ -4254,7 +4254,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.modpack_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x500+{int((self.modpack_window.winfo_screenwidth()-800)/2)}+{int((self.modpack_window.winfo_screenheight()-500)/2)}")
-        version_window.iconbitmap(".\\PMCL.ico")
+        version_window.iconbitmap(self.resource_path('PMCL.ico'))
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
