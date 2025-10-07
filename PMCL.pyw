@@ -13,34 +13,31 @@ import uuid
 
 class MinecraftLauncherGUI:
     def __init__(self, root):
-        # 下载启动器必需文件
-        if not os.path.exists("PMCL.ico"):
-            with open('PMCL.ico', 'wb') as f:
-                f.write(self.get_from_server('https://pmcldownloadserver.dpdns.org/PMCL.ico'))
-        # 创建窗口
-        self.root = root
-        self.root.title("Python Minecraft Launcher")
-        self.root.geometry(f"800x700+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-700)/2)}")
-        self.root.iconbitmap('.\\PMCL.ico')
-        
-        # Minecraft目录
-        # self.minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
-        self.minecraft_directory = f'{os.path.abspath('')}\\.minecraft'
+        try:
+            # 创建窗口
+            self.root = root
+            self.root.title("Python Minecraft Launcher")
+            self.root.geometry(f"800x700+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-700)/2)}")
+            self.root.iconbitmap(self.resource_path('PMCL.ico'))
+            
+            # Minecraft目录
+            # self.minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
+            self.minecraft_directory = f'{os.path.abspath('')}\\.minecraft'
 
-        
-        # 初始化设置
-        self.use_custom_java = True
-        self.use_java = False
-        self.java_path = None
-        self.skin_path = None
-        self.memory = None
+            
+            # 初始化设置
+            self.use_custom_java = True
+            self.use_java = False
+            self.java_path = None
+            self.skin_path = None
+            self.memory = None
 
-        # 启动器配置文件
-        if not os.path.exists(f'{self.minecraft_directory}'):
-            os.makedirs(self.minecraft_directory)
-        if not os.path.exists(f'{self.minecraft_directory}\\launcher_profiles.json'):
-            with open(f'{self.minecraft_directory}\\launcher_profiles.json','w') as launcher_profiles:
-                launcher_profiles.write("""{
+            # 启动器配置文件
+            if not os.path.exists(f'{self.minecraft_directory}'):
+                os.makedirs(self.minecraft_directory)
+            if not os.path.exists(f'{self.minecraft_directory}\\launcher_profiles.json'):
+                with open(f'{self.minecraft_directory}\\launcher_profiles.json','w') as launcher_profiles:
+                    launcher_profiles.write("""{
   "profiles":  {
     "PMCL": {
       "icon": "Grass",
@@ -54,32 +51,44 @@ class MinecraftLauncherGUI:
   "clientToken": "23323323323323323323323323323333"
 }""")
         
-        # 初始化版本列表
-        self.version_list = []
-        self.installed_versions = []
+            # 初始化版本列表
+            self.version_list = []
+            self.installed_versions = []
 
-        # 初始化版本隔离
-        self.isolation_var = tk.BooleanVar()
-        self.isolation_dir = ''
-        
-        # 创建界面
-        self.create_widgets()
+            # 初始化版本隔离
+            self.isolation_var = tk.BooleanVar()
+            self.isolation_dir = ''
+            
+            # 创建界面
+            self.create_widgets()
 
-        # 创建菜单
-        self.create_menu()
-        
-        # 获取版本列表
-        self.load_installed_versions()
+            # 创建菜单
+            self.create_menu()
+            
+            # 获取版本列表
+            self.load_installed_versions()
 
-        # 尝试从配置文件加载设置
-        self.load_settings()
-        
-        # 加载LittleSkin设置
-        self.load_littleskin_credentials()
+            # 尝试从配置文件加载设置
+            self.load_settings()
+            
+            # 加载LittleSkin设置
+            self.load_littleskin_credentials()
 
-        # 检查更新
-        self.check_update(False)
+            # 检查更新
+            self.check_update(False)
+    
+        except Exception as e:
+            messagebox.showerror("错误", f"程序初始化失败：{e}")
 
+    def resource_path(self, relative_path):
+        """获取资源的绝对路径"""
+        try:
+            # Nuitka 打包后，__file__ 指向临时目录或可执行文件位置
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        except Exception:
+            base_path = os.path.abspath(".")
+
+        return os.path.join(base_path, relative_path)
 
     def get_from_server(self, url):
         """从PMCL服务器下载文件"""
@@ -103,7 +112,7 @@ class MinecraftLauncherGUI:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.0.2.1'
+            current_version = '1.0.2.2'
             have_later_version = False
 
             # 获取更新日志
@@ -1707,7 +1716,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.2-hotfix.1\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.2-hotfix.2\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
