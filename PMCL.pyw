@@ -14,12 +14,9 @@ import uuid
 class MinecraftLauncherGUI:
     def __init__(self, root):
         # 下载启动器必需文件
-        try:
-            if not os.path.exists('.\\PMCL.ico'):
-                self.download_from_server('https://pmcldownloadserver.dpdns.org/PMCL.ico','.\\PMCL.ico')
-        except Exception as e:
-            messagebox.showerror("错误",f"下载启动器必需文件失败：{e}")
-
+        if not os.path.exists("PMCL.ico"):
+            with open('PMCL.ico', 'wb') as f:
+                f.write(self.get_from_server('https://pmcldownloadserver.dpdns.org/PMCL.ico'))
         # 创建窗口
         self.root = root
         self.root.title("Python Minecraft Launcher")
@@ -84,7 +81,7 @@ class MinecraftLauncherGUI:
         self.check_update(False)
 
 
-    def download_from_server(self, url, path):
+    def get_from_server(self, url):
         """从PMCL服务器下载文件"""
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
@@ -95,9 +92,8 @@ class MinecraftLauncherGUI:
             with urllib.request.urlopen(req) as response:
                 data = response.read()
             
-            # 处理下载到的数据，保存到文件
-            with open(path, 'wb') as f:
-                f.write(data)
+            # 返回下载到的数据
+            return data
         except Exception as e:
             messagebox.showerror("错误", f"请求失败: {e}")
     
@@ -105,14 +101,9 @@ class MinecraftLauncherGUI:
         """检查更新"""
         try:
             # 获取最新版本
-            headers = {
-                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-            }
-            req = urllib.request.Request('https://pmcldownloadserver.dpdns.org/latest_version.json', headers=headers)
-            with urllib.request.urlopen(req) as response:
-                check_update = response.read().decode('utf-8')
+            check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.0.2.0'
+            current_version = '1.0.2.1'
             have_later_version = False
 
             # 获取更新日志
@@ -504,7 +495,7 @@ class MinecraftLauncherGUI:
             
         self.version_settings_window = tk.Toplevel(self.root)
         self.version_settings_window.title(f"{version} 设置")
-        self.version_settings_window.geometry(f"300x360+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-360)/2)}")
+        self.version_settings_window.geometry(f"300x400+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-400)/2)}")
         self.version_settings_window.iconbitmap(".\\PMCL.ico")
         self.version_settings_window.grab_set()
         self.version_settings_window.resizable(False, False)
@@ -535,6 +526,10 @@ class MinecraftLauncherGUI:
         # 跳转到模组文件夹按钮
         mods_folder_button = ttk.Button(button_frame, text="打开模组文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}\\mods"))
         mods_folder_button.pack(fill=tk.X, pady=5)
+
+        # 跳转到光影文件夹按钮
+        shaderpack_folder_button = ttk.Button(button_frame, text="打开光影包文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}\\shaderpacks"))
+        shaderpack_folder_button.pack(fill=tk.X, pady=5)
 
         # 模组管理按钮
         mod_manager_button = ttk.Button(button_frame, text="模组管理", command=lambda: self.open_mod_manager(version))
@@ -1194,7 +1189,7 @@ class MinecraftLauncherGUI:
                 self.isolation_dir = f'{self.minecraft_directory}\\versions\\{version}'
                 
                 # 创建基本的目录结构
-                directories = ['saves', 'mods', 'config', 'screenshots', 'resourcepacks']
+                directories = ['saves', 'mods', 'config', 'screenshots', 'resourcepacks', 'shaderpacks']
                 if messagebox.askyesno("提示", "是否复制版本的数据？"):
                     import shutil
                     for directory in directories:
@@ -1426,7 +1421,10 @@ class MinecraftLauncherGUI:
             # 添加authlib-injector参数以使用LittleSkin
             authlib_injector_path = f"{self.minecraft_directory}\\authlib-injector.jar"
             if not os.path.exists(authlib_injector_path):
-                self.download_from_server('https://pmcldownloadserver.dpdns.org/authlib-injector.jar', authlib_injector_path)
+                self.log("正在下载authlib-injector.jar...")
+                # 下载authlib-injector.jar
+                with open(authlib_injector_path, 'wb') as f:
+                    f.write(self.get_from_server('https://pmcldownloadserver.dpdns.org/authlib-injector.jar'))
             if os.path.exists(authlib_injector_path):
                 # 在命令中添加-javaagent参数
                 java_agent_index = -1
@@ -1633,14 +1631,6 @@ class MinecraftLauncherGUI:
       # 关闭下载窗口
       self.dwidgets.destroy()
 
-    # 重启启动器
-    def restart(self):
-        try:
-            os.startfile('PMCL.exe')
-        except:
-            os.startfile('PMCL.pyw')
-        sys.exit()
-
     # 清理游戏垃圾
     def cleangame(self):
         with open('cleangame.bat', 'w') as cleangame_file:
@@ -1712,13 +1702,12 @@ del /f /s /q ".\\cleangame.bat"''')
         download_menu.add_command(label="下载整合包", command=self.create_modpack_download_widgets)
         
         tools_menu = tk.Menu(menu, tearoff = False)
-        tools_menu.add_command(label = "重启启动器",command = self.restart)
         tools_menu.add_command(label = "清理游戏垃圾",command = self.cleangame)
 
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.2\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.2-hotfix.1\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
