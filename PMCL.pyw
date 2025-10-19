@@ -290,7 +290,7 @@ class MinecraftLauncherGUI:
     def log(self, message):
         """在日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] {message}\n")
+            f.write(f"[{time.asctime()}] [root] {message}\n")
         self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.config(state=tk.DISABLED)
@@ -2078,7 +2078,7 @@ del /f /s /q "./cleangame.bat"''')
     def datapack_log(self, message):
         """在数据包日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] {message}\n")
+            f.write(f"[{time.asctime()}] [datapack] {message}\n")
         self.datapack_log_text.config(state=tk.NORMAL)
         self.datapack_log_text.insert(tk.END, message + "\n")
         self.datapack_log_text.config(state=tk.DISABLED)
@@ -2603,7 +2603,7 @@ del /f /s /q "./cleangame.bat"''')
     def resourcepack_log(self, message):
         """在资源包日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] {message}\n")
+            f.write(f"[{time.asctime()}] [resourcepack] {message}\n")
         self.resourcepack_log_text.config(state=tk.NORMAL)
         self.resourcepack_log_text.insert(tk.END, message + "\n")
         self.resourcepack_log_text.config(state=tk.DISABLED)
@@ -3093,7 +3093,7 @@ del /f /s /q "./cleangame.bat"''')
     def mod_log(self, message):
         """在Mod日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] {message}\n")
+            f.write(f"[{time.asctime()}] [mod] {message}\n")
         self.mod_log_text.config(state=tk.NORMAL)
         self.mod_log_text.insert(tk.END, message + "\n")
         self.mod_log_text.config(state=tk.DISABLED)
@@ -3616,7 +3616,7 @@ del /f /s /q "./cleangame.bat"''')
     def shader_log(self, message):
         """在光影包日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] {message}\n")
+            f.write(f"[{time.asctime()}] [shaderpack] {message}\n")
         self.shader_log_text.config(state=tk.NORMAL)
         self.shader_log_text.insert(tk.END, message + "\n")
         self.shader_log_text.config(state=tk.DISABLED)
@@ -4148,7 +4148,7 @@ del /f /s /q "./cleangame.bat"''')
     def modpack_log(self, message):
         """在整合包日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] {message}\n")
+            f.write(f"[{time.asctime()}] [modpack] {message}\n")
         self.modpack_log_text.config(state=tk.NORMAL)
         self.modpack_log_text.insert(tk.END, message + "\n")
         self.modpack_log_text.config(state=tk.DISABLED)
