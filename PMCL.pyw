@@ -129,7 +129,7 @@ class MinecraftLauncherGUI:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.0.3.0'
+            current_version = '1.0.3.1'
             have_later_version = False
 
             # 获取更新日志
@@ -1764,7 +1764,7 @@ del /f /s /q "./cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.3\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.3-hotfix.1\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -4840,7 +4840,7 @@ echo 正在更新启动器
 tasklist /fi "imagename eq PMCL.exe" /fo csv 2>nul | find /i "PMCL.exe" >nul
 if not errorlevel 1 (
     echo 等待启动器关闭. . .
-    timeout /t 0.5 /nobreak >nul
+    timeout /t 1 /nobreak >nul
     goto loop
 )
 
