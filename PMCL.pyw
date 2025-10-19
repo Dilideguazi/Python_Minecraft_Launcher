@@ -4,12 +4,14 @@ import sys
 import os
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, filedialog, simpledialog
+from PIL import Image, ImageTk
 import threading
 import urllib.error
 import urllib.request
 import urllib.parse
 import json
 import uuid
+import time
 
 class MinecraftLauncherGUI:
     def __init__(self, root):
@@ -18,11 +20,26 @@ class MinecraftLauncherGUI:
             self.root = root
             self.root.title("Python Minecraft Launcher")
             self.root.geometry(f"800x700+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-700)/2)}")
-            self.root.iconbitmap(self.resource_path('PMCL.ico'))
+            
+            # 记录日志
+            self.start_time = round(time.time(), 1)
+
+            if not os.path.exists("logs"):
+                os.makedirs("logs")
+            
+            with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+                f.write(f"[{time.asctime()}] 程序开始运行\n")
+            
+            # 使用 PIL 打开PNG图片
+            image = Image.open(self.resource_path('PMCL.png'))
+            photo = ImageTk.PhotoImage(image)
+            
+            # 设置窗口图标
+            self.root.iconphoto(True, photo)
             
             # Minecraft目录
             # self.minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
-            self.minecraft_directory = f'{os.path.abspath('')}\\.minecraft'
+            self.minecraft_directory = f'{os.path.abspath('')}/.minecraft'
 
             
             # 初始化设置
@@ -35,8 +52,8 @@ class MinecraftLauncherGUI:
             # 启动器配置文件
             if not os.path.exists(f'{self.minecraft_directory}'):
                 os.makedirs(self.minecraft_directory)
-            if not os.path.exists(f'{self.minecraft_directory}\\launcher_profiles.json'):
-                with open(f'{self.minecraft_directory}\\launcher_profiles.json','w') as launcher_profiles:
+            if not os.path.exists(f'{self.minecraft_directory}/launcher_profiles.json'):
+                with open(f'{self.minecraft_directory}/launcher_profiles.json','w') as launcher_profiles:
                     launcher_profiles.write("""{
   "profiles":  {
     "PMCL": {
@@ -112,7 +129,7 @@ class MinecraftLauncherGUI:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.0.2.3'
+            current_version = '1.0.3.0'
             have_later_version = False
 
             # 获取更新日志
@@ -132,7 +149,7 @@ class MinecraftLauncherGUI:
                     progress_window = tk.Toplevel(self.root)
                     progress_window.title("下载进度")
                     progress_window.geometry("300x100")
-                    progress_window.iconbitmap(self.resource_path('PMCL.ico'))
+
                     progress_window.resizable(False, False)
                     progress_window.transient(self.root)
                     progress_window.grab_set()
@@ -183,6 +200,7 @@ class MinecraftLauncherGUI:
             elif from_menu:
                 messagebox.showinfo("提示", "已是最新版本")
         except Exception as e:
+            self.log(f"检查或更新新版本失败：{e}")
             messagebox.showerror("错误", f"检查或更新新版本失败：{e}")
 
         
@@ -271,6 +289,8 @@ class MinecraftLauncherGUI:
         
     def log(self, message):
         """在日志区域显示消息"""
+        with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+            f.write(f"[{time.asctime()}] {message}\n")
         self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.config(state=tk.DISABLED)
@@ -290,7 +310,7 @@ class MinecraftLauncherGUI:
     def load_littleskin_credentials(self):
         """从配置文件加载LittleSkin凭证"""
         try:
-            settings_file = f".\\pmcl_settings.json"
+            settings_file = f"./pmcl_settings.json"
             if os.path.exists(settings_file):
                 with open(settings_file, "r") as f:
                     settings = json.load(f)
@@ -301,7 +321,7 @@ class MinecraftLauncherGUI:
     def save_littleskin_credentials(self):
         """保存LittleSkin凭证到配置文件"""
         try:
-            settings_file = f".\\pmcl_settings.json"
+            settings_file = f"./pmcl_settings.json"
             # 先加载现有设置
             settings = {}
             if os.path.exists(settings_file):
@@ -348,7 +368,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/1.0.2 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/1.0.3 (Python Minecraft Launcher)'
                 }
             )
             
@@ -398,7 +418,7 @@ class MinecraftLauncherGUI:
         except urllib.error.HTTPError as e:
             if e.code == 403:
                 self.log(f"LittleSkin认证HTTP错误: 用户名或密码错误")
-                messagebox.showerror("认证失败", f"LittleSkin认证失败: 用户名或密码错误")
+                messagebox.showwarning("警告", f"LittleSkin认证失败: 用户名或密码错误")
             else:
                 self.log(f"LittleSkin认证HTTP错误: {e.code} - {e.reason}")
                 messagebox.showerror("认证失败", f"LittleSkin认证失败: HTTP {e.code} - {e.reason}")
@@ -419,7 +439,6 @@ class MinecraftLauncherGUI:
         dialog.title("选择角色")
         dialog.transient(self.root)
         dialog.grab_set()
-        dialog.iconbitmap(self.resource_path('PMCL.ico'))
         
         # 居中显示
         dialog.update_idletasks()
@@ -484,8 +503,8 @@ class MinecraftLauncherGUI:
         """加载已安装的版本列表"""
         try:
             # 获取已安装的版本
-            if os.path.exists(f"{self.minecraft_directory}\\versions"):
-                self.installed_versions = os.listdir(f"{self.minecraft_directory}\\versions")
+            if os.path.exists(f"{self.minecraft_directory}/versions"):
+                self.installed_versions = os.listdir(f"{self.minecraft_directory}/versions")
                 # 更新启动版本下拉列表
                 self.launch_version_combobox['values'] = self.installed_versions
                 
@@ -505,7 +524,7 @@ class MinecraftLauncherGUI:
         self.version_settings_window = tk.Toplevel(self.root)
         self.version_settings_window.title(f"{version} 设置")
         self.version_settings_window.geometry(f"300x400+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-400)/2)}")
-        self.version_settings_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.version_settings_window.grab_set()
         self.version_settings_window.resizable(False, False)
         
@@ -521,23 +540,23 @@ class MinecraftLauncherGUI:
         button_frame.pack(fill=tk.BOTH, expand=True)
         
         # 跳转到版本文件夹按钮
-        version_folder_button = ttk.Button(button_frame, text="打开版本文件夹", command=lambda: self.open_folder(f"{self.minecraft_directory}\\versions\\{version}"))
+        version_folder_button = ttk.Button(button_frame, text="打开版本文件夹", command=lambda: self.open_folder(f"{self.minecraft_directory}/versions/{version}"))
         version_folder_button.pack(fill=tk.X, pady=5)
         
         # 跳转到存档文件夹按钮
-        saves_folder_button = ttk.Button(button_frame, text="打开存档文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}\\saves"))
+        saves_folder_button = ttk.Button(button_frame, text="打开存档文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}/saves"))
         saves_folder_button.pack(fill=tk.X, pady=5)
 
         # 跳转到资源包文件夹按钮
-        resourcepack_folder_button = ttk.Button(button_frame, text="打开资源包文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}\\resourcepacks"))
+        resourcepack_folder_button = ttk.Button(button_frame, text="打开资源包文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}/resourcepacks"))
         resourcepack_folder_button.pack(fill=tk.X, pady=5)
 
         # 跳转到模组文件夹按钮
-        mods_folder_button = ttk.Button(button_frame, text="打开模组文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}\\mods"))
+        mods_folder_button = ttk.Button(button_frame, text="打开模组文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}/mods"))
         mods_folder_button.pack(fill=tk.X, pady=5)
 
         # 跳转到光影文件夹按钮
-        shaderpack_folder_button = ttk.Button(button_frame, text="打开光影包文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}\\shaderpacks"))
+        shaderpack_folder_button = ttk.Button(button_frame, text="打开光影包文件夹", command=lambda: self.open_folder(f"{self.isolation_dir}/shaderpacks"))
         shaderpack_folder_button.pack(fill=tk.X, pady=5)
 
         # 模组管理按钮
@@ -575,7 +594,7 @@ class MinecraftLauncherGUI:
     def open_mod_manager(self, version):
         """打开模组管理窗口"""
         self.init_isolation_state(version)
-        mods_dir = f"{self.isolation_dir}\\mods"
+        mods_dir = f"{self.isolation_dir}/mods"
         
         # 如果模组文件夹不存在，创建它
         if not os.path.exists(mods_dir):
@@ -585,7 +604,7 @@ class MinecraftLauncherGUI:
         self.mod_manager_window = tk.Toplevel(self.root)
         self.mod_manager_window.title(f"{version} 模组管理")
         self.mod_manager_window.geometry(f"800x550+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-550)/2)}")
-        self.mod_manager_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.mod_manager_window.grab_set()
         self.mod_manager_window.resizable(False, False)
         
@@ -712,7 +731,7 @@ class MinecraftLauncherGUI:
         # 获取当前版本的模组目录
         version = self.launch_version_var.get()
         self.init_isolation_state(version)
-        mods_dir = f"{self.isolation_dir}\\mods"
+        mods_dir = f"{self.isolation_dir}/mods"
         
         # 清空现有数据
         for item in self.mods_tree.get_children():
@@ -818,7 +837,7 @@ class MinecraftLauncherGUI:
             # 重新加载模组列表
             version = self.launch_version_var.get()
             self.init_isolation_state(version)
-            mods_dir = f"{self.isolation_dir}\\mods"
+            mods_dir = f"{self.isolation_dir}/mods"
             self.load_mods_list(mods_dir)
             
             # 重置全选按钮
@@ -900,7 +919,7 @@ class MinecraftLauncherGUI:
             # 重新加载模组列表
             version = self.launch_version_var.get()
             self.init_isolation_state(version)
-            mods_dir = f"{self.isolation_dir}\\mods"
+            mods_dir = f"{self.isolation_dir}/mods"
             self.load_mods_list(mods_dir)
             
             # 重置全选按钮
@@ -913,7 +932,7 @@ class MinecraftLauncherGUI:
         # 重新加载所有模组
         version = self.launch_version_var.get()
         self.init_isolation_state(version)
-        mods_dir = f"{self.isolation_dir}\\mods"
+        mods_dir = f"{self.isolation_dir}/mods"
         self.load_mods_list(mods_dir)
         
     def format_file_size(self, size):
@@ -1018,7 +1037,7 @@ class MinecraftLauncherGUI:
                         # 重新加载模组列表
                         version = self.launch_version_var.get()
                         self.init_isolation_state(version)
-                        mods_dir = f"{self.isolation_dir}\\mods"
+                        mods_dir = f"{self.isolation_dir}/mods"
                         self.load_mods_list(mods_dir)
                     except Exception as e:
                         messagebox.showerror("错误", f"删除模组失败: {str(e)}")
@@ -1071,7 +1090,7 @@ class MinecraftLauncherGUI:
                     # 重新加载模组列表
                     version = self.launch_version_var.get()
                     self.init_isolation_state(version)
-                    mods_dir = f"{self.isolation_dir}\\mods"
+                    mods_dir = f"{self.isolation_dir}/mods"
                     self.load_mods_list(mods_dir)
                 except Exception as e:
                     messagebox.showerror("错误", f"切换模组状态失败: {str(e)}")
@@ -1095,27 +1114,27 @@ class MinecraftLauncherGUI:
 
         # 检查新名称是否合法
         import re
-        if re.search(r'[\\/:*?"<>|]', new_name):
-            messagebox.showerror("错误", "重命名版本失败: 名称包含非法字符")
+        if re.search(r'[//:*?"<>|]', new_name):
+            messagebox.showwarning("警告", "重命名版本失败: 名称包含非法字符")
             return
             
         # 检查新名称是否已存在
-        new_path = f"{self.minecraft_directory}\\versions\\{new_name}"
+        new_path = f"{self.minecraft_directory}/versions/{new_name}"
         if os.path.exists(new_path):
-            messagebox.showerror("错误", f"版本 {new_name} 已存在，请选择其他名称。")
+            messagebox.showwarning("警告", f"版本 {new_name} 已存在，请选择其他名称。")
             return
             
         try:
             # 重命名版本文件夹
-            old_path = f"{self.minecraft_directory}\\versions\\{version}"
+            old_path = f"{self.minecraft_directory}/versions/{version}"
             if os.path.exists(old_path):
                 os.rename(old_path, new_path)
                 
                 # 重命名版本文件夹内的.jar和.json文件
-                old_jar = f'{new_path}\\{version}.jar'
-                new_jar = f'{new_path}\\{new_name}.jar'
-                old_json = f'{new_path}\\{version}.json'
-                new_json = f'{new_path}\\{new_name}.json'
+                old_jar = f'{new_path}/{version}.jar'
+                new_jar = f'{new_path}/{new_name}.jar'
+                old_json = f'{new_path}/{version}.json'
+                new_json = f'{new_path}/{new_name}.json'
                 
                 if os.path.exists(old_jar):
                     os.rename(old_jar, new_jar)
@@ -1169,7 +1188,7 @@ class MinecraftLauncherGUI:
         """删除指定版本"""
         if messagebox.askyesno("确认删除", f"确定要删除版本 {version} 吗？此操作不可撤销。"):
             try:
-                version_path = f"{self.minecraft_directory}\\versions\\{version}"
+                version_path = f"{self.minecraft_directory}/versions/{version}"
                 if os.path.exists(version_path):
                     import shutil
                     shutil.rmtree(version_path)
@@ -1184,9 +1203,13 @@ class MinecraftLauncherGUI:
                 
     def init_isolation_state(self, version):
         """初始化版本隔离状态"""
-        if os.path.exists(f'{self.minecraft_directory}\\versions\\{version}\\config'):
-            self.isolation_dir = f'{self.minecraft_directory}\\versions\\{version}'
+        if os.path.exists(f'{self.minecraft_directory}/versions/{version}/config'):
+            if hasattr(self, "isolation_var"):
+                self.isolation_var.set(True)
+            self.isolation_dir = f'{self.minecraft_directory}/versions/{version}'
         else:
+            if hasattr(self, "isolation_var"):
+                self.isolation_var.set(False)
             self.isolation_dir = ''.join(self.minecraft_directory)
         
     def toggle_version_isolation(self, version):
@@ -1195,18 +1218,18 @@ class MinecraftLauncherGUI:
         if self.isolation_var.get():
             # 启用版本隔离
             try:
-                self.isolation_dir = f'{self.minecraft_directory}\\versions\\{version}'
+                self.isolation_dir = f'{self.minecraft_directory}/versions/{version}'
                 
                 # 创建基本的目录结构
                 directories = ['saves', 'mods', 'config', 'screenshots', 'resourcepacks', 'shaderpacks']
                 if messagebox.askyesno("提示", "是否复制版本的数据？"):
                     import shutil
                     for directory in directories:
-                        if os.path.exists(f'{self.minecraft_directory}\\{directory}'):
-                            shutil.copytree(f'{self.minecraft_directory}\\{directory}', f'{self.isolation_dir}\\{directory}', dirs_exist_ok=True)
+                        if os.path.exists(f'{self.minecraft_directory}/{directory}'):
+                            shutil.copytree(f'{self.minecraft_directory}/{directory}', f'{self.isolation_dir}/{directory}', dirs_exist_ok=True)
 
                 for directory in directories:
-                    os.makedirs(f"{self.isolation_dir}\\{directory}", exist_ok=True)
+                    os.makedirs(f"{self.isolation_dir}/{directory}", exist_ok=True)
                 
                 messagebox.showinfo("成功", f"版本 {version} 的隔离环境已创建")
                 self.log(f"版本 {version} 的隔离环境已创建")
@@ -1223,13 +1246,13 @@ class MinecraftLauncherGUI:
                         import shutil
                         if messagebox.askyesno("提示", "是否复制版本的数据？"):
                             for directory in directories:
-                                if os.path.exists(f'{self.isolation_dir}\\{directory}'):
-                                    shutil.copytree(f'{self.isolation_dir}\\{directory}', f'{self.minecraft_directory}\\{directory}', dirs_exist_ok=True)
+                                if os.path.exists(f'{self.isolation_dir}/{directory}'):
+                                    shutil.copytree(f'{self.isolation_dir}/{directory}', f'{self.minecraft_directory}/{directory}', dirs_exist_ok=True)
                         
                         for directory in directories:
                             for directory in directories:
-                                if os.path.exists(f'{self.isolation_dir}\\{directory}'):
-                                    shutil.rmtree(f'{self.isolation_dir}\\{directory}')
+                                if os.path.exists(f'{self.isolation_dir}/{directory}'):
+                                    shutil.rmtree(f'{self.isolation_dir}/{directory}')
                         
                         self.isolation_dir = ''.join(self.minecraft_directory)
                         messagebox.showinfo("成功", f"版本 {version} 的隔离环境已移除")
@@ -1277,7 +1300,7 @@ class MinecraftLauncherGUI:
             if self.java_path:
                 options["executablePath"] = self.java_path
             else:
-                messagebox.showerror("错误", "请输入Java路径！")
+                messagebox.showwarning("警告", "请输入Java路径！")
                 return
         
         # 添加内存设置
@@ -1325,8 +1348,8 @@ class MinecraftLauncherGUI:
                     options["jvmArguments"] = [f"-Xmx{memory}m"]
             
             # 设置中文
-            if not os.path.exists(f'{self.isolation_dir}\\options.txt'):
-                with open(f'{self.isolation_dir}\\options.txt', 'w') as options_file:
+            if not os.path.exists(f'{self.isolation_dir}/options.txt'):
+                with open(f'{self.isolation_dir}/options.txt', 'w') as options_file:
                     options_file.write('lang:zh_CN')
             
             # 如果设置了皮肤路径，则复制皮肤文件
@@ -1334,11 +1357,11 @@ class MinecraftLauncherGUI:
             if self.skin_path and os.path.exists(self.skin_path):
                 try:
                     import shutil
-                    skins_dir = f'{self.isolation_dir}\\CustomSkinLoader'
+                    skins_dir = f'{self.isolation_dir}/CustomSkinLoader'
                     if os.path.exists(skins_dir):
-                        if os.path.exists(f'{skins_dir}\\LocalSkin\\skins\\{username}.png'):
-                            os.remove(f'{skins_dir}\\LocalSkin\\skins\\{username}.png')
-                        shutil.copy2(self.skin_path, f'{skins_dir}\\LocalSkin\\skins\\{username}.png')
+                        if os.path.exists(f'{skins_dir}/LocalSkin/skins/{username}.png'):
+                            os.remove(f'{skins_dir}/LocalSkin/skins/{username}.png')
+                        shutil.copy2(self.skin_path, f'{skins_dir}/LocalSkin/skins/{username}.png')
                         self.log(f"皮肤已应用: {self.skin_path}")
                     else:
                         self.log("应用皮肤失败: 未找到CustomSkinLoader")
@@ -1357,7 +1380,7 @@ class MinecraftLauncherGUI:
                     break
             
             if not self.use_java:
-                minecraft_command[0] = minecraft_command[0].replace('java.exe', 'javaw.exe')
+                minecraft_command[0] = 'javaw'.join(minecraft_command[0].rsplit('java', 1))
                 
             self.log(str(minecraft_command))
             self.log("Minecraft已启动")
@@ -1413,8 +1436,8 @@ class MinecraftLauncherGUI:
             options["resolutionHeight"] = "480"
             
             # 设置中文
-            if not os.path.exists(f'{self.isolation_dir}\\options.txt'):
-                with open(f'{self.isolation_dir}\\options.txt', 'w') as options_file:
+            if not os.path.exists(f'{self.isolation_dir}/options.txt'):
+                with open(f'{self.isolation_dir}/options.txt', 'w') as options_file:
                     options_file.write('lang:zh_CN')
             
             username = auth_data["username"]
@@ -1428,7 +1451,7 @@ class MinecraftLauncherGUI:
             )
             
             # 添加authlib-injector参数以使用LittleSkin
-            authlib_injector_path = f"{self.minecraft_directory}\\authlib-injector.jar"
+            authlib_injector_path = f"{self.minecraft_directory}/authlib-injector.jar"
             if not os.path.exists(authlib_injector_path):
                 self.log("正在下载authlib-injector.jar...")
                 # 下载authlib-injector.jar
@@ -1455,7 +1478,7 @@ class MinecraftLauncherGUI:
                 self.log("警告: 未找到authlib-injector.jar，将使用默认认证")
 
             if not self.use_java:
-                minecraft_command[0] = minecraft_command[0].replace('java.exe', 'javaw.exe')
+                minecraft_command[0] = 'javaw'.join(minecraft_command[0].rsplit('java', 1))
                 
             self.log(str(minecraft_command))
             self.log("Minecraft已启动")
@@ -1481,8 +1504,9 @@ class MinecraftLauncherGUI:
     def create_download_widgets(self):
         self.dwidgets = tk.Toplevel(self.root)
         self.dwidgets.title("下载版本")
+        
         self.dwidgets.geometry(f"500x300+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-300)/2)}")
-        self.dwidgets.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.dwidgets.grab_set()
         self.dwidgets.resizable(False, False)
         
@@ -1574,81 +1598,103 @@ class MinecraftLauncherGUI:
         install_thread.start()
             
     def _install_version_thread(self, version):
-      """在后台线程中安装版本"""
-      modloader = self.download_modloader_var.get()
+        """在后台线程中安装版本"""
+        modloader = self.download_modloader_var.get()
 
-      if modloader == '原版':
-          try:
-              self.log(f"正在安装Minecraft {version}...")
+        current_max = 0
 
-              # 安装版本
-              minecraft_launcher_lib.install.install_minecraft_version(
-                  version,
-                  self.minecraft_directory,
-              )
-              self.log(f"Minecraft {version} 安装完成!")
-              messagebox.showinfo("成功", f"Minecraft {version} 安装完成!")
-          except Exception as e:
-              self.log(f"安装失败: {str(e)}")
-              messagebox.showerror("错误", f"安装失败: {str(e)}")
+        def set_status(status):
+            self.log(status.replace("Download", "下载").replace("Installation complete", "安装完成"))
 
-      elif modloader == 'Forge':
-          try:
-              self.log(f"正在安装Forge for Minecraft {version}...")
+        def set_progress(progress):
+            if current_max:
+                self.log(f"进度：{progress}/{current_max} {progress / current_max * 100:.1f}%")
 
-              # 获取Forge最新版本
-              forge_version = minecraft_launcher_lib.forge.find_forge_version(version)
-              if forge_version is None:
-                  self.log(f"未找到适用于Minecraft {version}的Forge版本")
-                  messagebox.showerror("错误", f"未找到适用于Minecraft {version}的Forge版本")
-                  return
+        def set_max(new_max):
+            global current_max
+            current_max = new_max
 
-              # 安装Forge
-              minecraft_launcher_lib.forge.install_forge_version(
-                  forge_version,
-                  self.minecraft_directory,
-              )
+        callback = {
+            "setStatus": set_status,
+            "setProgress": set_progress,
+            "setMax": set_max
+        }
 
-              self.log(f"Forge {forge_version} 安装完成!")
-              messagebox.showinfo("成功", f"Forge {forge_version} 安装完成!")
-          except Exception as e:
-              self.log(f"Forge安装失败: {str(e)}")
-              messagebox.showerror("错误", f"Forge安装失败: {str(e)}")
+        if modloader == '原版':
+            try:
+                self.log(f"正在安装Minecraft {version}...")
 
-      elif modloader == 'Fabric':
-          try:
-              self.log(f"正在安装Fabric for Minecraft {version}...")
+                # 安装版本
+                minecraft_launcher_lib.install.install_minecraft_version(
+                    version,
+                    self.minecraft_directory,
+                    callback=callback
+                )
+                self.log(f"Minecraft {version} 安装完成!")
+                messagebox.showinfo("成功", f"Minecraft {version} 安装完成!")
+            except Exception as e:
+                self.log(f"安装失败: {str(e)}")
+                messagebox.showerror("错误", f"安装失败: {str(e)}")
 
-              # 安装Fabric
-              minecraft_launcher_lib.fabric.install_fabric(
-                  version,
-                  self.minecraft_directory,
-              )
-              self.log(f"Fabric for Minecraft {version} 安装完成!")
-              messagebox.showinfo("成功", f"Fabric for Minecraft {version} 安装完成!")
-          except Exception as e:
-              self.log(f"Fabric安装失败: {str(e)}")
-              messagebox.showerror("错误", f"Fabric安装失败: {str(e)}")
+        elif modloader == 'Forge':
+            try:
+                self.log(f"正在安装Forge for Minecraft {version}...")
 
-      # 重新加载已安装版本列表
-      self.load_installed_versions()
+                # 获取Forge最新版本
+                forge_version = minecraft_launcher_lib.forge.find_forge_version(version)
+                if forge_version is None:
+                    self.log(f"未找到适用于Minecraft {version}的Forge版本")
+                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Forge版本")
+                    return
 
-      # 重新启用按钮
-      self.download_button.config(state=tk.NORMAL)
-      self.launch_button.config(state=tk.NORMAL)
+                # 安装Forge
+                minecraft_launcher_lib.forge.install_forge_version(
+                    forge_version,
+                    self.minecraft_directory,
+                    callback=callback
+                )
 
-      # 关闭下载窗口
-      self.dwidgets.destroy()
+                self.log(f"Forge {forge_version} 安装完成!")
+                messagebox.showinfo("成功", f"Forge {forge_version} 安装完成!")
+            except Exception as e:
+                self.log(f"Forge安装失败: {str(e)}")
+                messagebox.showerror("错误", f"Forge安装失败: {str(e)}")
+
+        elif modloader == 'Fabric':
+            try:
+                self.log(f"正在安装Fabric for Minecraft {version}...")
+
+                # 安装Fabric
+                minecraft_launcher_lib.fabric.install_fabric(
+                    version,
+                    self.minecraft_directory,
+                    callback=callback
+                )
+                self.log(f"Fabric for Minecraft {version} 安装完成!")
+                messagebox.showinfo("成功", f"Fabric for Minecraft {version} 安装完成!")
+            except Exception as e:
+                self.log(f"Fabric安装失败: {str(e)}")
+                messagebox.showerror("错误", f"Fabric安装失败: {str(e)}")
+
+        # 重新加载已安装版本列表
+        self.load_installed_versions()
+
+        # 重新启用按钮
+        self.download_button.config(state=tk.NORMAL)
+        self.launch_button.config(state=tk.NORMAL)
+
+        # 关闭下载窗口
+        self.dwidgets.destroy()
 
     # 清理游戏垃圾
     def cleangame(self):
         with open('cleangame.bat', 'w') as cleangame_file:
             cleangame_file.write('''@echo off
 %1(start /min cmd.exe /c %0 :& exit)
-del /f /s /q ".\\*.log"
-del /f /s /q ".\\*.log.gz"
-rd /s /q ".\\minecraft\\logs"
-del /f /s /q ".\\cleangame.bat"''')
+del /f /s /q "./*.log"
+del /f /s /q "./*.log.gz"
+rd /s /q "./minecraft/logs"
+del /f /s /q "./cleangame.bat"''')
         os.startfile('cleangame.bat')
 
     def homepage(self):
@@ -1659,7 +1705,7 @@ del /f /s /q ".\\cleangame.bat"''')
         homepage_window = tk.Toplevel(self.root)
         homepage_window.title("打开作品（作者）主页")
         homepage_window.geometry(f'300x110+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-110)/2)}')
-        homepage_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         homepage_window.grab_set()
         homepage_window.resizable(False, False)
 
@@ -1674,7 +1720,7 @@ del /f /s /q ".\\cleangame.bat"''')
         def openurl():
             """打开网站"""
             if not homepage_select_var:
-                messagebox.showerror("错误", "请选择平台！")
+                messagebox.showwarning("警告", "请选择平台！")
             elif homepage_select_var.get() == "官网":
                 webbrowser.open("https://pmcldownloadserver.dpdns.org")
             elif homepage_select_var.get() == "Bilibili":
@@ -1695,6 +1741,8 @@ del /f /s /q ".\\cleangame.bat"''')
     # 退出
     def _exit(self):
         if messagebox.askyesno("提示","你是否要退出启动器？"):
+            with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+                f.write(f"[{time.asctime()}] 程序正常退出\n")
             sys.exit()
 
     def create_menu(self):
@@ -1716,7 +1764,7 @@ del /f /s /q ".\\cleangame.bat"''')
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label = "作品（作者）主页",command = self.homepage)
-        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.2-hotfix.3\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label = "关于",command = lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.3\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         menu.add_cascade(label = "下载",menu = download_menu)
         menu.add_command(label = "设置",command = self.create_settings_widgets)
@@ -1729,7 +1777,7 @@ del /f /s /q ".\\cleangame.bat"''')
     def load_settings(self):
         """从配置文件加载设置"""
         try:
-            settings_file = f"{os.path.abspath('')}\\pmcl_settings.json"
+            settings_file = f"{os.path.abspath('')}/pmcl_settings.json"
             if os.path.exists(settings_file):
                 with open(settings_file, "r") as f:
                     settings = json.load(f)
@@ -1746,7 +1794,7 @@ del /f /s /q ".\\cleangame.bat"''')
     def save_settings(self):
         """保存设置到配置文件"""
         try:
-            settings_file = f"{os.path.abspath('')}\\pmcl_settings.json"
+            settings_file = f"{os.path.abspath('')}/pmcl_settings.json"
             settings = {
                 "use_custom_java": self.use_custom_java,
                 "use_java": self.use_java,
@@ -1765,8 +1813,9 @@ del /f /s /q ".\\cleangame.bat"''')
     def create_settings_widgets(self):
         """创建设置窗口"""
         self.settings_window = tk.Toplevel(self.root)
+        
         self.settings_window.title("设置")
-        self.settings_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.settings_window.grab_set()
         self.settings_window.resizable(False, False)
         
@@ -1861,10 +1910,10 @@ del /f /s /q ".\\cleangame.bat"''')
         self.use_java = use_java
         
         java_path = self.java_path_var.get()
-        if java_path:
-            self.java_path = java_path
-        else:
-            self.java_path = None
+        if not self.use_custom_java:
+            if not self.java_path:
+                messagebox.showwarning("警告", "请输入Java路径！")
+                return
             
         # 获取内存设置
         memory = self.memory_var.get()
@@ -1907,7 +1956,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.datapack_window = tk.Toplevel(self.root)
         self.datapack_window.title("数据包下载")
         self.datapack_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.datapack_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.datapack_window.resizable(False, False)
         
         # 数据包下载窗口主框架
@@ -2028,6 +2077,8 @@ del /f /s /q ".\\cleangame.bat"''')
             
     def datapack_log(self, message):
         """在数据包日志区域显示消息"""
+        with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+            f.write(f"[{time.asctime()}] {message}\n")
         self.datapack_log_text.config(state=tk.NORMAL)
         self.datapack_log_text.insert(tk.END, message + "\n")
         self.datapack_log_text.config(state=tk.DISABLED)
@@ -2087,7 +2138,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2177,7 +2228,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.datapack_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x550+{int((self.datapack_window.winfo_screenwidth()-800)/2)}+{int((self.datapack_window.winfo_screenheight()-550)/2)}")
-        version_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -2300,7 +2351,7 @@ del /f /s /q ".\\cleangame.bat"''')
         try:
             self.init_isolation_state(self.install_datapack_version_var.get())
             # 获取存档目录
-            saves_dir = f"{self.isolation_dir}\\saves"
+            saves_dir = f"{self.isolation_dir}/saves"
             if not os.path.exists(saves_dir):
                 os.makedirs(saves_dir)
                 
@@ -2334,14 +2385,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2398,11 +2449,11 @@ del /f /s /q ".\\cleangame.bat"''')
                 self.datapack_log("未选择世界")
                 return
                 
-            datapacks_dir = f"{self.isolation_dir}\\saves\\{world_name}\\datapacks"
+            datapacks_dir = f"{self.isolation_dir}/saves/{world_name}/datapacks"
             if not os.path.exists(datapacks_dir):
                 os.makedirs(datapacks_dir)
                 
-            save_path = f"{datapacks_dir}\\{file_name}"
+            save_path = f"{datapacks_dir}/{file_name}"
             
             self.datapack_log(f"正在下载: {file_name}")
             
@@ -2430,7 +2481,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.resourcepack_window = tk.Toplevel(self.root)
         self.resourcepack_window.title("资源包下载")
         self.resourcepack_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.resourcepack_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.resourcepack_window.resizable(False, False)
         
         # 资源包下载窗口主框架
@@ -2551,6 +2602,8 @@ del /f /s /q ".\\cleangame.bat"''')
             
     def resourcepack_log(self, message):
         """在资源包日志区域显示消息"""
+        with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+            f.write(f"[{time.asctime()}] {message}\n")
         self.resourcepack_log_text.config(state=tk.NORMAL)
         self.resourcepack_log_text.insert(tk.END, message + "\n")
         self.resourcepack_log_text.config(state=tk.DISABLED)
@@ -2610,7 +2663,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2700,7 +2753,6 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.resourcepack_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x500+{int((self.resourcepack_window.winfo_screenwidth()-800)/2)}+{int((self.resourcepack_window.winfo_screenheight()-500)/2)}")
-        version_window.iconbitmap(self.resource_path('PMCL.ico'))
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -2820,14 +2872,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2880,11 +2932,11 @@ del /f /s /q ".\\cleangame.bat"''')
                 
             # 确定保存路径
             self.init_isolation_state(self.install_resourcepack_version_var.get())
-            resourcepacks_dir = f"{self.isolation_dir}\\resourcepacks"
+            resourcepacks_dir = f"{self.isolation_dir}/resourcepacks"
             if not os.path.exists(resourcepacks_dir):
                 os.makedirs(resourcepacks_dir)
                 
-            save_path = f"{resourcepacks_dir}\\{file_name}"
+            save_path = f"{resourcepacks_dir}/{file_name}"
             
             self.resourcepack_log(f"正在下载: {file_name}")
             
@@ -2912,7 +2964,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.mod_window = tk.Toplevel(self.root)
         self.mod_window.title("Mod下载")
         self.mod_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.mod_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.mod_window.resizable(False, False)
         
         # Mod下载窗口主框架
@@ -3040,6 +3092,8 @@ del /f /s /q ".\\cleangame.bat"''')
             
     def mod_log(self, message):
         """在Mod日志区域显示消息"""
+        with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+            f.write(f"[{time.asctime()}] {message}\n")
         self.mod_log_text.config(state=tk.NORMAL)
         self.mod_log_text.insert(tk.END, message + "\n")
         self.mod_log_text.config(state=tk.DISABLED)
@@ -3099,7 +3153,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3189,7 +3243,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.mod_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x500+{int((self.mod_window.winfo_screenwidth()-800)/2)}+{int((self.mod_window.winfo_screenheight()-500)/2)}")
-        version_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -3312,14 +3366,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3372,11 +3426,11 @@ del /f /s /q ".\\cleangame.bat"''')
                 
             # 确定保存路径
             self.init_isolation_state(self.install_mod_version_var.get())
-            mods_dir = f"{self.isolation_dir}\\mods"
+            mods_dir = f"{self.isolation_dir}/mods"
             if not os.path.exists(mods_dir):
                 os.makedirs(mods_dir)
                 
-            save_path = f"{mods_dir}\\{file_name}"
+            save_path = f"{mods_dir}/{file_name}"
             
             self.mod_log(f"正在下载: {file_name}")
             
@@ -3440,7 +3494,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.shader_window = tk.Toplevel(self.root)
         self.shader_window.title("光影包下载")
         self.shader_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.shader_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.shader_window.resizable(False, False)
         
         # 光影包下载窗口主框架
@@ -3561,6 +3615,8 @@ del /f /s /q ".\\cleangame.bat"''')
             
     def shader_log(self, message):
         """在光影包日志区域显示消息"""
+        with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+            f.write(f"[{time.asctime()}] {message}\n")
         self.shader_log_text.config(state=tk.NORMAL)
         self.shader_log_text.insert(tk.END, message + "\n")
         self.shader_log_text.config(state=tk.DISABLED)
@@ -3620,7 +3676,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3710,7 +3766,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.shader_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x500+{int((self.shader_window.winfo_screenwidth()-800)/2)}+{int((self.shader_window.winfo_screenheight()-500)/2)}")
-        version_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -3830,14 +3886,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3890,11 +3946,11 @@ del /f /s /q ".\\cleangame.bat"''')
                 
             # 确定保存路径
             self.init_isolation_state(self.install_shader_version_var.get())
-            shaderpacks_dir = f"{self.isolation_dir}\\shaderpacks"
+            shaderpacks_dir = f"{self.isolation_dir}/shaderpacks"
             if not os.path.exists(shaderpacks_dir):
                 os.makedirs(shaderpacks_dir)
                 
-            save_path = f"{shaderpacks_dir}\\{file_name}"
+            save_path = f"{shaderpacks_dir}/{file_name}"
             
             self.shader_log(f"正在下载: {file_name}")
             
@@ -3922,7 +3978,7 @@ del /f /s /q ".\\cleangame.bat"''')
         self.modpack_window = tk.Toplevel(self.root)
         self.modpack_window.title("整合包下载")
         self.modpack_window.geometry(f"800x600+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-600)/2)}")
-        self.modpack_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         self.modpack_window.resizable(False, False)
 
         # 创建选项卡
@@ -4091,6 +4147,8 @@ del /f /s /q ".\\cleangame.bat"''')
             
     def modpack_log(self, message):
         """在整合包日志区域显示消息"""
+        with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+            f.write(f"[{time.asctime()}] {message}\n")
         self.modpack_log_text.config(state=tk.NORMAL)
         self.modpack_log_text.insert(tk.END, message + "\n")
         self.modpack_log_text.config(state=tk.DISABLED)
@@ -4154,7 +4212,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4238,8 +4296,8 @@ del /f /s /q ".\\cleangame.bat"''')
         while not self.version_name:
             self.version_name = tk.simpledialog.askstring("命名版本", "请为安装的整合包命名", initialvalue=modpack_name)
         import re
-        if re.search(r'[\\/:*?"<>|]', self.version_name):
-            messagebox.showerror("错误", "非法的版本名称")
+        if re.search(r'[//:*?"<>|]', self.version_name):
+            messagebox.showwarning("警告", "非法的版本名称")
             self.download_modpack_button.config(state=tk.NORMAL)
             return
         
@@ -4254,7 +4312,7 @@ del /f /s /q ".\\cleangame.bat"''')
         version_window = tk.Toplevel(self.modpack_window)
         version_window.title(f"选择 {project_name} 的版本")
         version_window.geometry(f"800x500+{int((self.modpack_window.winfo_screenwidth()-800)/2)}+{int((self.modpack_window.winfo_screenheight()-500)/2)}")
-        version_window.iconbitmap(self.resource_path('PMCL.ico'))
+        
         version_window.grab_set()  # 模态窗口
         version_window.resizable(False, False)
         
@@ -4371,14 +4429,14 @@ del /f /s /q ".\\cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.0.3 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4474,11 +4532,30 @@ del /f /s /q ".\\cleangame.bat"''')
             self.modpack_log(f"整合包信息: Minecraft {game_version}, 加载器: {modloader if modloader else '原版'}")
             
             # 检查是否需要安装游戏版本
+            current_max = 0
+
+            def set_status(status):
+                self.modpack_log(status.replace("Download", "下载").replace("Installation complete", "安装完成"))
+
+            def set_progress(progress):
+                if current_max:
+                    self.modpack_log(f"进度：{progress}/{current_max} {progress / current_max * 100:.1f}%")
+            
+            def set_max(new_max):
+                global current_max
+                current_max = new_max
+
+            callback = {
+                "setStatus": set_status,
+                "setProgress": set_progress,
+                "setMax": set_max
+            }
+            
             if not modloader:
-                if not os.path.exists(f"{self.minecraft_directory}\\versions\\{game_version}"):
+                if not os.path.exists(f"{self.minecraft_directory}/versions/{game_version}"):
                     self.modpack_log(f"需要安装Minecraft {game_version}...")
                     try:
-                        minecraft_launcher_lib.install.install_minecraft_version(game_version, self.minecraft_directory)
+                        minecraft_launcher_lib.install.install_minecraft_version(game_version, self.minecraft_directory, callback=callback)
                         self.modpack_log(f"Minecraft {game_version} 安装完成")
                     except Exception as e:
                         self.modpack_log(f"安装Minecraft版本失败: {str(e)}")
@@ -4492,10 +4569,10 @@ del /f /s /q ".\\cleangame.bat"''')
                             forge_id = version
                             break
                     
-                    if not os.path.exists(f"{self.minecraft_directory}\\versions\\{forge_id}"):
+                    if not os.path.exists(f"{self.minecraft_directory}/versions/{forge_id}"):
                         self.modpack_log(f"需要安装Forge {forge_version}...")
                         try:
-                            minecraft_launcher_lib.forge.install_forge_version(forge_id, self.minecraft_directory)
+                            minecraft_launcher_lib.forge.install_forge_version(forge_id, self.minecraft_directory, callback=callback)
                             self.modpack_log(f"Forge {forge_version} 安装完成")
                             self.load_installed_versions()
                             for version in self.launch_version_combobox['values']:
@@ -4507,10 +4584,10 @@ del /f /s /q ".\\cleangame.bat"''')
                 fabric_loader_version = index_data.get('dependencies', {}).get('fabric-loader')
                 if fabric_loader_version:
                     fabric_id = f"fabric-loader-{fabric_loader_version}-{game_version}"
-                    if not os.path.exists(f"{self.minecraft_directory}\\versions\\{fabric_id}"):
+                    if not os.path.exists(f"{self.minecraft_directory}/versions/{fabric_id}"):
                         self.modpack_log(f"需要安装Fabric Loader {fabric_loader_version}...")
                         try:
-                            minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory)
+                            minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory, callback=callback)
                             self.modpack_log(f"Fabric Loader {fabric_loader_version} 安装完成")
                         except Exception as e:
                             self.modpack_log(f"安装Fabric失败: {str(e)}")
@@ -4590,8 +4667,8 @@ del /f /s /q ".\\cleangame.bat"''')
         while not self.version_name:
             self.version_name = tk.simpledialog.askstring("命名版本", "请为安装的整合包命名", initialvalue=os.path.splitext(os.path.basename(modpack_path))[0])
         import re
-        if re.search(r'[\\/:*?"<>|]', self.version_name):
-            messagebox.showerror("错误", "非法的版本名称")
+        if re.search(r'[//:*?"<>|]', self.version_name):
+            messagebox.showwarning("警告", "非法的版本名称")
             return
         install_modpack_thread = threading.Thread(target=self._install_modpack_thread, args=(modpack_path,))
         install_modpack_thread.daemon = True
@@ -4602,7 +4679,7 @@ del /f /s /q ".\\cleangame.bat"''')
         try:
             if not modpack_path:
                 self.modpack_log("请指定整合包文件！")
-                messagebox.showerror("错误", "请指定整合包文件！")
+                messagebox.showwarning("警告", "请指定整合包文件！")
                 return
             
             import tempfile
@@ -4642,7 +4719,7 @@ del /f /s /q ".\\cleangame.bat"''')
             
             # 检查是否需要安装游戏版本
             if not modloader:
-                if not os.path.exists(f"{self.minecraft_directory}\\versions\\{game_version}"):
+                if not os.path.exists(f"{self.minecraft_directory}/versions/{game_version}"):
                     self.modpack_log(f"需要安装Minecraft {game_version}...")
                     try:
                         minecraft_launcher_lib.install.install_minecraft_version(game_version, self.minecraft_directory)
@@ -4659,7 +4736,7 @@ del /f /s /q ".\\cleangame.bat"''')
                             forge_id = version
                             break
                     
-                    if not os.path.exists(f"{self.minecraft_directory}\\versions\\{forge_id}"):
+                    if not os.path.exists(f"{self.minecraft_directory}/versions/{forge_id}"):
                         self.modpack_log(f"需要安装Forge {forge_version}...")
                         try:
                             minecraft_launcher_lib.forge.install_forge_version(forge_id, self.minecraft_directory)
@@ -4674,7 +4751,7 @@ del /f /s /q ".\\cleangame.bat"''')
                 fabric_loader_version = index_data.get('dependencies', {}).get('fabric-loader')
                 if fabric_loader_version:
                     fabric_id = f"fabric-loader-{fabric_loader_version}-{game_version}"
-                    if not os.path.exists(f"{self.minecraft_directory}\\versions\\{fabric_id}"):
+                    if not os.path.exists(f"{self.minecraft_directory}/versions/{fabric_id}"):
                         self.modpack_log(f"需要安装Fabric Loader {fabric_loader_version}...")
                         try:
                             minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory)
