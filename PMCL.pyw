@@ -96,7 +96,6 @@ class MinecraftLauncherGUI:
 
             # 检查更新
             self.check_update(False)
-    
         except Exception as e:
             messagebox.showerror("错误", f"程序初始化失败：{e}")
 
@@ -126,14 +125,14 @@ class MinecraftLauncherGUI:
         except Exception as e:
             self.log(f"请求失败: {e}", "ERROR")
             messagebox.showerror("错误", f"请求失败: {e}")
-    
+
     def check_update(self, from_menu):
         """检查更新"""
         try:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.0.4.0'
+            current_version = '1.1.0.0'
             have_later_version = False
 
             # 获取更新日志
@@ -294,7 +293,7 @@ class MinecraftLauncherGUI:
     def log(self, message, level):
         """在日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] [root] [{level}] {message}\n")
+            f.write(f"[{time.asctime()}] [root/{level}] {message}\n")
         self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.config(state=tk.DISABLED)
@@ -372,7 +371,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/1.0.4 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/1.1 (Python Minecraft Launcher)'
                 }
             )
             
@@ -1557,7 +1556,7 @@ class MinecraftLauncherGUI:
         self.download_version_combobox.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         self.download_modloader_var = tk.StringVar()
         self.download_modloader_var.set('原版')
-        self.download_modloader_combobox = ttk.Combobox(download_frame, values = ['原版','Forge','Fabric'], textvariable=self.download_modloader_var, state="readonly", width=40)
+        self.download_modloader_combobox = ttk.Combobox(download_frame, values = ['原版','Forge','Fabric', 'Quilt'], textvariable=self.download_modloader_var, state="readonly", width=40)
         self.download_modloader_combobox.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
         # 刷新版本列表按钮
@@ -1692,6 +1691,10 @@ class MinecraftLauncherGUI:
 
                 self.log(f"Forge {forge_version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Forge {forge_version} 安装完成!")
+            except FileNotFoundError:
+                self.log("Forge安装失败，可能是没有配置Java环境", "ERROR")
+                if messagebox.askyesno("提示", "Forge安装失败，可能是没有配置Java环境，是否配置？"):
+                    self.add_java_path()
             except Exception as e:
                 self.log(f"Forge安装失败: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"Forge安装失败: {str(e)}")
@@ -1699,6 +1702,14 @@ class MinecraftLauncherGUI:
         elif modloader == 'Fabric':
             try:
                 self.log(f"正在安装Fabric for Minecraft {version}...", "INFO")
+                if not minecraft_launcher_lib.fabric.is_minecraft_version_supported(version):
+                    self.log(f"未找到适用于Minecraft {version}的Fabric版本", "WARN")
+                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Fabric版本")
+
+                    # 重新启用按钮
+                    self.download_button.config(state=tk.NORMAL)
+                    self.launch_button.config(state=tk.NORMAL)
+                    return
 
                 # 安装Fabric
                 minecraft_launcher_lib.fabric.install_fabric(
@@ -1708,9 +1719,41 @@ class MinecraftLauncherGUI:
                 )
                 self.log(f"Fabric for Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Fabric for Minecraft {version} 安装完成!")
+            except FileNotFoundError:
+                self.log("Fabric安装失败，可能是没有配置Java环境", "ERROR")
+                if messagebox.askyesno("提示", "Fabric安装失败，可能是没有配置Java环境，是否配置？"):
+                    self.add_java_path()
             except Exception as e:
                 self.log(f"Fabric安装失败: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"Fabric安装失败: {str(e)}")
+
+        elif modloader == 'Quilt':
+            try:
+                self.log(f"正在安装Quilt for Minecraft {version}...", "INFO")
+                if not minecraft_launcher_lib.quilt.is_minecraft_version_supported(version):
+                    self.log(f"未找到适用于Minecraft {version}的Quilt版本", "WARN")
+                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Quilt版本")
+
+                    # 重新启用按钮
+                    self.download_button.config(state=tk.NORMAL)
+                    self.launch_button.config(state=tk.NORMAL)
+                    return
+
+                # 安装Quilt
+                minecraft_launcher_lib.quilt.install_quilt(
+                    version,
+                    self.minecraft_directory,
+                    callback=callback
+                )
+                self.log(f"Quilt for Minecraft {version} 安装完成!", "INFO")
+                messagebox.showinfo("成功", f"Quilt for Minecraft {version} 安装完成!")
+            except FileNotFoundError:
+                self.log("Quilt安装失败，可能是没有配置Java环境", "ERROR")
+                if messagebox.askyesno("提示", "Quilt安装失败，可能是没有配置Java环境，是否配置？"):
+                    self.add_java_path()
+            except Exception as e:
+                self.log(f"Quilt安装失败: {str(e)}", "ERROR")
+                messagebox.showerror("错误", f"Quilt安装失败: {str(e)}")
 
         # 重新加载已安装版本列表
         self.load_installed_versions()
@@ -1721,6 +1764,43 @@ class MinecraftLauncherGUI:
 
         # 关闭下载窗口
         self.dwidgets.destroy()
+
+    def add_java_path(self):
+        """将Java路径添加到PATH"""
+        # 查找Java路径
+        for root, dirs, files in os.walk(self.minecraft_directory):
+            if 'java.exe' in files:
+                java_path = root
+                break
+
+        # 添加到PATH
+        import winreg
+        import ctypes
+
+        def set_environment_variable(name, value):
+            try:
+                # 打开用户环境变量注册表键
+                key = winreg.OpenKey(
+                    winreg.HKEY_LOCAL_MACHINE,
+                    r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                    0,  # 默认权限
+                    winreg.KEY_WRITE
+                )
+                # 设置环境变量
+                winreg.SetValueEx(key, name, 0, winreg.REG_EXPAND_SZ, value)
+                winreg.CloseKey(key)
+                
+                # 通知系统环境变量已更改（使用WM_SETTINGCHANGE消息）
+                ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x1A, 0, 'Environment', 0, 1000, None)
+            except PermissionError:
+                self.log("权限不足，请右键程序以管理员身份运行！", "WARN")
+                messagebox.showinfo("错误", "权限不足，请右键程序以管理员身份运行！")
+                sys.exit()
+
+        set_environment_variable('PATH', f'{os.environ.get('PATH')};{java_path}')
+
+        self.log("环境配置完成", "INFO")
+        messagebox.showinfo("成功", "环境配置完成，请重新安装版本，如果仍然出现此提示请注销后重新登录！")
 
     # 清理游戏垃圾
     def cleangame(self):
@@ -1801,10 +1881,10 @@ del /f /s /q "./cleangame.bat"''')
 
         # 帮助菜单
         help_menu = tk.Menu(menu, tearoff = False)
-        help_menu.add_command(label="检查更新", command=lambda: self.check_update(True))
         help_menu.add_command(label="作品（作者）主页", command=self.homepage)
+        help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
-        help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.4-hotfix.1\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.1\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         # 主菜单
         menu.add_cascade(label="下载", menu=download_menu)
@@ -2108,6 +2188,13 @@ del /f /s /q "./cleangame.bat"''')
                     
             # 更新下拉列表
             self.datapack_mc_version_combobox['value'] = self.version_list
+
+            try:
+                self.datapack_minecraft_version_combobox['value'] = self.version_list
+                if self.version_list:
+                    self.datapack_minecraft_version_var.set(self.version_list[0])
+            except:
+                pass
             
             # 设置默认选中版本为最新版本
             if self.version_list:
@@ -2121,7 +2208,7 @@ del /f /s /q "./cleangame.bat"''')
     def datapack_log(self, message, level):
         """在数据包日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] [datapack] [{level}] {message}\n")
+            f.write(f"[{time.asctime()}] [datapack/{level}] {message}\n")
         self.datapack_log_text.config(state=tk.NORMAL)
         self.datapack_log_text.insert(tk.END, message + "\n")
         self.datapack_log_text.config(state=tk.DISABLED)
@@ -2181,7 +2268,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2267,6 +2354,8 @@ del /f /s /q "./cleangame.bat"''')
         
     def select_datapack_version(self, versions_data, project_name):
         """选择数据包版本"""
+        self.versions_data = versions_data
+
         # 创建版本选择窗口
         version_window = tk.Toplevel(self.datapack_window)
         version_window.title(f"选择 {project_name} 的版本")
@@ -2283,13 +2372,27 @@ del /f /s /q "./cleangame.bat"''')
         title_label = ttk.Label(version_main_frame, text=f"选择 {project_name} 的版本", font=("微软雅黑", 16))
         title_label.pack(pady=(0, 10))
 
-        # 选择想要安装数据包的MC版本
+        # 顶部框架
+        top_frame = ttk.Frame(version_main_frame, padding="0")
+        top_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 选择想要安装数据包的已安装版本
         self.install_datapack_version_var = tk.StringVar()
-        self.install_datapack_version_combobox = ttk.Combobox(version_main_frame, textvariable=self.install_datapack_version_var, state="readonly", width=20)
-        self.install_datapack_version_combobox.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.install_datapack_version_combobox = ttk.Combobox(top_frame, textvariable=self.install_datapack_version_var, state="readonly", width=20)
+        self.install_datapack_version_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
         self.install_datapack_version_combobox['values'] = self.installed_versions
         self.install_datapack_version_var.set(self.installed_versions[0])
         self.install_datapack_version_combobox.bind("<<ComboboxSelected>>", self.load_world_list)
+
+        # 选择想要安装数据包的MC版本
+        self.datapack_minecraft_version_var = tk.StringVar()
+        self.datapack_minecraft_version_combobox = ttk.Combobox(top_frame, textvariable=self.datapack_minecraft_version_var, state="readonly", width=20)
+        self.datapack_minecraft_version_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.datapack_minecraft_version_combobox['values'] = self.installed_versions
+        self.datapack_minecraft_version_var.set(self.installed_versions[0])
+        self.datapack_minecraft_version_combobox.bind("<<ComboboxSelected>>", self.load_datapack_list)
+
+        self.load_datapack_version_list()
         
         # 选择想要安装数据包的世界    
         self.install_datapack_world_var = tk.StringVar()
@@ -2306,48 +2409,49 @@ del /f /s /q "./cleangame.bat"''')
         
         # 创建Treeview来显示版本列表
         version_columns = ('version', 'datapack_filename', 'mc_version', 'type', 'date')
-        version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
+        self.version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
         
         # 定义列标题
-        version_tree.heading('version', text='版本')
-        version_tree.heading('datapack_filename', text='文件名')
-        version_tree.heading('mc_version', text='MC版本')
-        version_tree.heading('type', text='类型')
-        version_tree.heading('date', text='发布日期')
+        self.version_tree.heading('version', text='版本')
+        self.version_tree.heading('datapack_filename', text='文件名')
+        self.version_tree.heading('mc_version', text='MC版本')
+        self.version_tree.heading('type', text='类型')
+        self.version_tree.heading('date', text='发布日期')
         
         # 设置列宽
-        version_tree.column('version', width=70)
-        version_tree.column('datapack_filename', width=200)
-        version_tree.column('mc_version', width=360)
-        version_tree.column('type', width=50)
-        version_tree.column('date', width=120)
+        self.version_tree.column('version', width=70)
+        self.version_tree.column('datapack_filename', width=200)
+        self.version_tree.column('mc_version', width=360)
+        self.version_tree.column('type', width=50)
+        self.version_tree.column('date', width=120)
         
         # 添加滚动条
-        version_scrollbar = ttk.Scrollbar(version_list_frame, orient=tk.VERTICAL, command=version_tree.yview)
-        version_tree.configure(yscrollcommand=version_scrollbar.set)
+        version_scrollbar = ttk.Scrollbar(version_list_frame, orient=tk.VERTICAL, command=self.version_tree.yview)
+        self.version_tree.configure(yscrollcommand=version_scrollbar.set)
         
         # 布局
-        version_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.version_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         version_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # 填充版本数据
         for version in versions_data:
-            version_tree.insert('', tk.END, values=(
-                version.get('version_number', '未知'),
-                version.get('files', [])[0].get('filename', '未知'),
-                ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
-                version.get('version_type', '未知'),
-                version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
-            ), tags=(version.get('id'),))
+            if self.datapack_minecraft_version_var.get() in version.get('game_versions', []) or self.datapack_minecraft_version_var.get() == "全部":
+                self.version_tree.insert('', tk.END, values=(
+                    version.get('version_number', '未知'),
+                    version.get('files', [])[0].get('filename', '未知'),
+                    ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
+                    version.get('version_type', '未知'),
+                    version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
+                ), tags=(version.get('id'),))
         
         # 选择的版本变量
         selected_version = [None]  # 使用列表以便在内部函数中修改
 
         def on_version_select(event):
             """当选择版本时"""
-            selection = version_tree.selection()
+            selection = self.version_tree.selection()
             if selection:
-                item = version_tree.item(selection[0])
+                item = self.version_tree.item(selection[0])
                 tags = item['tags']
                 if tags:
                     selected_version[0] = tags[0]
@@ -2357,10 +2461,10 @@ del /f /s /q "./cleangame.bat"''')
             if selected_version[0] is None:
                 messagebox.showwarning("警告", "请先选择一个版本")
                 return
-            version_window.destroy()
+            version_window.destroy()   
         
         # 绑定选择事件
-        version_tree.bind('<<TreeviewSelect>>', on_version_select)
+        self.version_tree.bind('<<TreeviewSelect>>', on_version_select)
         
         # 按钮框架
         button_frame = ttk.Frame(version_main_frame)
@@ -2388,6 +2492,19 @@ del /f /s /q "./cleangame.bat"''')
         
         # 返回选择的版本ID
         return selected_version[0]
+    
+    def load_datapack_list(self, event):
+        """加载数据包列表"""
+        self.version_tree.delete(*self.version_tree.get_children())
+        for version in self.versions_data:
+            if self.datapack_minecraft_version_var.get() in version.get('game_versions', []) or self.datapack_minecraft_version_var.get() == "全部":
+                self.version_tree.insert('', tk.END, values=(
+                    version.get('version_number', '未知'),
+                    version.get('files', [])[0].get('filename', '未知'),
+                    ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
+                    version.get('version_type', '未知'),
+                    version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
+                ), tags=(version.get('id'),))
         
     def load_world_list(self, event=None):
         """加载世界列表"""
@@ -2428,14 +2545,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2633,6 +2750,13 @@ del /f /s /q "./cleangame.bat"''')
                     
             # 更新下拉列表
             self.resourcepack_mc_version_combobox['value'] = self.version_list
+
+            try:
+                self.resourcepack_minecraft_version_combobox['value'] = self.version_list
+                if self.version_list:
+                    self.resourcepack_minecraft_version_var.set(self.version_list[0])
+            except:
+                pass
             
             # 设置默认选中版本为最新版本
             if self.version_list:
@@ -2646,7 +2770,7 @@ del /f /s /q "./cleangame.bat"''')
     def resourcepack_log(self, message, level):
         """在资源包日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] [resourcepack] [{level}] {message}\n")
+            f.write(f"[{time.asctime()}] [resourcepack/{level}] {message}\n")
         self.resourcepack_log_text.config(state=tk.NORMAL)
         self.resourcepack_log_text.insert(tk.END, message + "\n")
         self.resourcepack_log_text.config(state=tk.DISABLED)
@@ -2706,7 +2830,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2792,6 +2916,8 @@ del /f /s /q "./cleangame.bat"''')
         
     def select_resourcepack_version(self, versions_data, project_name):
         """选择资源包版本"""
+        self.versions_data = versions_data
+
         # 创建版本选择窗口
         version_window = tk.Toplevel(self.resourcepack_window)
         version_window.title(f"选择 {project_name} 的版本")
@@ -2807,12 +2933,24 @@ del /f /s /q "./cleangame.bat"''')
         title_label = ttk.Label(version_main_frame, text=f"选择 {project_name} 的版本", font=("微软雅黑", 16))
         title_label.pack(pady=(0, 10))
 
+        # 顶部框架
+        top_frame = ttk.Frame(version_main_frame, padding="0")
+        top_frame.pack(fill=tk.BOTH, expand=True)
+
         # 选择想要安装资源包的MC版本
         self.install_resourcepack_version_var = tk.StringVar()
-        self.install_resourcepack_version_combobox = ttk.Combobox(version_main_frame, textvariable=self.install_resourcepack_version_var, state="readonly", width=20)
-        self.install_resourcepack_version_combobox.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.install_resourcepack_version_combobox = ttk.Combobox(top_frame, textvariable=self.install_resourcepack_version_var, state="readonly", width=20)
+        self.install_resourcepack_version_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
         self.install_resourcepack_version_combobox['values'] = self.installed_versions
         self.install_resourcepack_version_var.set(self.installed_versions[0])
+
+        # 选择资源包的MC版本
+        self.resourcepack_minecraft_version_var = tk.StringVar()
+        self.resourcepack_minecraft_version_combobox = ttk.Combobox(top_frame, textvariable=self.resourcepack_minecraft_version_var, state="readonly", width=20)
+        self.resourcepack_minecraft_version_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.resourcepack_minecraft_version_combobox.bind("<<ComboboxSelected>>", self.load_resourcepack_version)
+
+        self.load_resourcepack_version_list()
 
         # 版本列表框架
         version_list_frame = ttk.Frame(version_main_frame)
@@ -2820,48 +2958,49 @@ del /f /s /q "./cleangame.bat"''')
         
         # 创建Treeview来显示版本列表
         version_columns = ('version', 'resourcepack_filename', 'mc_version', 'type', 'date')
-        version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
+        self.version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
         
         # 定义列标题
-        version_tree.heading('version', text='版本')
-        version_tree.heading('resourcepack_filename', text='文件名')
-        version_tree.heading('mc_version', text='MC版本')
-        version_tree.heading('type', text='类型')
-        version_tree.heading('date', text='发布日期')
+        self.version_tree.heading('version', text='版本')
+        self.version_tree.heading('resourcepack_filename', text='文件名')
+        self.version_tree.heading('mc_version', text='MC版本')
+        self.version_tree.heading('type', text='类型')
+        self.version_tree.heading('date', text='发布日期')
         
         # 设置列宽
-        version_tree.column('version', width=70)
-        version_tree.column('resourcepack_filename', width=200)
-        version_tree.column('mc_version', width=360)
-        version_tree.column('type', width=50)
-        version_tree.column('date', width=120)
+        self.version_tree.column('version', width=70)
+        self.version_tree.column('resourcepack_filename', width=200)
+        self.version_tree.column('mc_version', width=360)
+        self.version_tree.column('type', width=50)
+        self.version_tree.column('date', width=120)
         
         # 添加滚动条
-        version_scrollbar = ttk.Scrollbar(version_list_frame, orient=tk.VERTICAL, command=version_tree.yview)
-        version_tree.configure(yscrollcommand=version_scrollbar.set)
+        version_scrollbar = ttk.Scrollbar(version_list_frame, orient=tk.VERTICAL, command=self.version_tree.yview)
+        self.version_tree.configure(yscrollcommand=version_scrollbar.set)
         
         # 布局
-        version_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.version_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         version_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # 填充版本数据
         for version in versions_data:
-            version_tree.insert('', tk.END, values=(
-                version.get('version_number', '未知'),
-                version.get('files', [])[0].get('filename', '未知'),
-                ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
-                version.get('version_type', '未知'),
-                version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
-            ), tags=(version.get('id'),))
+            if self.resourcepack_minecraft_version_var.get() == "全部" or self.resourcepack_minecraft_version_var.get() in version.get('game_versions', []):
+                self.version_tree.insert('', tk.END, values=(
+                    version.get('version_number', '未知'),
+                    version.get('files', [])[0].get('filename', '未知'),
+                    ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
+                    version.get('version_type', '未知'),
+                    version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
+                ), tags=(version.get('id'),))
         
         # 选择的版本变量
         selected_version = [None]  # 使用列表以便在内部函数中修改
 
         def on_version_select(event):
             """当选择版本时"""
-            selection = version_tree.selection()
+            selection = self.version_tree.selection()
             if selection:
-                item = version_tree.item(selection[0])
+                item = self.version_tree.item(selection[0])
                 tags = item['tags']
                 if tags:
                     selected_version[0] = tags[0]
@@ -2874,7 +3013,7 @@ del /f /s /q "./cleangame.bat"''')
             version_window.destroy()
         
         # 绑定选择事件
-        version_tree.bind('<<TreeviewSelect>>', on_version_select)
+        self.version_tree.bind('<<TreeviewSelect>>', on_version_select)
         
         # 按钮框架
         button_frame = ttk.Frame(version_main_frame)
@@ -2902,6 +3041,21 @@ del /f /s /q "./cleangame.bat"''')
         
         # 返回选择的版本ID
         return selected_version[0]
+    
+    def load_resourcepack_version(self, event):
+        """加载资源包版本"""
+        self.version_tree.delete(*self.version_tree.get_children())
+
+        # 填充版本数据
+        for version in self.versions_data:
+            if self.resourcepack_minecraft_version_var.get() == "全部" or self.resourcepack_minecraft_version_var.get() in version.get('game_versions', []):
+                self.version_tree.insert('', tk.END, values=(
+                    version.get('version_number', '未知'),
+                    version.get('files', [])[0].get('filename', '未知'),
+                    ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
+                    version.get('version_type', '未知'),
+                    version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
+                ), tags=(version.get('id'),))
         
     def _download_resourcepack_thread(self, project_id):
         """在后台线程中下载资源包"""
@@ -2915,14 +3069,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3038,7 +3192,7 @@ del /f /s /q "./cleangame.bat"''')
         ttk.Label(search_frame, text="Mod加载器:").grid(row=2, column=1, sticky=tk.W, pady=(0, 5))
         self.mod_loader_var = tk.StringVar()
         self.mod_loader_var.set('全部')
-        self.mod_loader_combobox = ttk.Combobox(search_frame, values=['全部', 'Forge', 'Fabric'], textvariable=self.mod_loader_var, state="readonly", width=20)
+        self.mod_loader_combobox = ttk.Combobox(search_frame, values=['全部', 'Forge', 'Fabric', 'Quilt'], textvariable=self.mod_loader_var, state="readonly", width=20)
         self.mod_loader_combobox.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # 显示非正式版
@@ -3123,6 +3277,13 @@ del /f /s /q "./cleangame.bat"''')
                     
             # 更新下拉列表
             self.mod_mc_version_combobox['value'] = self.version_list
+
+            try:
+                self.mod_minecraft_version_combobox['value'] = self.version_list
+                if self.version_list:
+                    self.mod_minecraft_version_var.set(self.version_list[0])
+            except:
+                pass
             
             # 设置默认选中版本为最新版本
             if self.version_list:
@@ -3136,7 +3297,7 @@ del /f /s /q "./cleangame.bat"''')
     def mod_log(self, message, level):
         """在Mod日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] [mod] [{level}] {message}\n")
+            f.write(f"[{time.asctime()}] [mod/{level}] {message}\n")
         self.mod_log_text.config(state=tk.NORMAL)
         self.mod_log_text.insert(tk.END, message + "\n")
         self.mod_log_text.config(state=tk.DISABLED)
@@ -3196,7 +3357,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3282,6 +3443,8 @@ del /f /s /q "./cleangame.bat"''')
         
     def select_mod_version(self, versions_data, project_name):
         """选择Mod版本"""
+        self.versions_data = versions_data
+
         # 创建版本选择窗口
         version_window = tk.Toplevel(self.mod_window)
         version_window.title(f"选择 {project_name} 的版本")
@@ -3298,12 +3461,32 @@ del /f /s /q "./cleangame.bat"''')
         title_label = ttk.Label(version_main_frame, text=f"选择 {project_name} 的版本", font=("微软雅黑", 16))
         title_label.pack(pady=(0, 10))
 
-        # 选择想要安装Mod的MC版本
+        # 顶部框架
+        top_frame = ttk.Frame(version_main_frame, padding="0")
+        top_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 选择想要安装Mod的版本
         self.install_mod_version_var = tk.StringVar()
-        self.install_mod_version_combobox = ttk.Combobox(version_main_frame, textvariable=self.install_mod_version_var, state="readonly", width=20)
-        self.install_mod_version_combobox.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.install_mod_version_combobox = ttk.Combobox(top_frame, textvariable=self.install_mod_version_var, state="readonly", width=20)
+        self.install_mod_version_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
         self.install_mod_version_combobox['values'] = self.installed_versions
         self.install_mod_version_var.set(self.installed_versions[0])
+
+        # 选择Mod的MC版本
+        self.mod_minecraft_version_var = tk.StringVar()
+        self.mod_minecraft_version_combobox = ttk.Combobox(top_frame, textvariable=self.mod_minecraft_version_var, state="readonly", width=20)
+        self.mod_minecraft_version_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.mod_minecraft_version_combobox.bind("<<ComboboxSelected>>", self.load_mod_list)
+
+        self.load_mod_version_list()
+
+        # 选择Mod的模组加载器版本
+        self.mod_modloader_var = tk.StringVar()
+        self.mod_modloader_combobox = ttk.Combobox(top_frame, textvariable=self.mod_modloader_var, state="readonly", width=20)
+        self.mod_modloader_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.mod_modloader_combobox['values'] = ("全部", "Forge", "Fabric", "Quilt")
+        self.mod_modloader_var.set("全部")
+        self.mod_modloader_combobox.bind("<<ComboboxSelected>>", self.load_mod_list)
 
         # 版本列表框架
         version_list_frame = ttk.Frame(version_main_frame)
@@ -3311,51 +3494,53 @@ del /f /s /q "./cleangame.bat"''')
         
         # 创建Treeview来显示版本列表
         version_columns = ('version', 'mod_filename', 'mod_loader', 'mc_version', 'type', 'date')
-        version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
+        self.version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
         
         # 定义列标题
-        version_tree.heading('version', text='版本')
-        version_tree.heading('mod_filename', text='文件名')
-        version_tree.heading('mod_loader', text='模组加载器')
-        version_tree.heading('mc_version', text='MC版本')
-        version_tree.heading('type', text='类型')
-        version_tree.heading('date', text='发布日期')
+        self.version_tree.heading('version', text='版本')
+        self.version_tree.heading('mod_filename', text='文件名')
+        self.version_tree.heading('mod_loader', text='模组加载器')
+        self.version_tree.heading('mc_version', text='MC版本')
+        self.version_tree.heading('type', text='类型')
+        self.version_tree.heading('date', text='发布日期')
         
         # 设置列宽
-        version_tree.column('version', width=170)
-        version_tree.column('mod_filename', width=250)
-        version_tree.column('mod_loader', width=70)
-        version_tree.column('mc_version', width=150)
-        version_tree.column('type', width=50)
-        version_tree.column('date', width=120)
+        self.version_tree.column('version', width=170)
+        self.version_tree.column('mod_filename', width=250)
+        self.version_tree.column('mod_loader', width=70)
+        self.version_tree.column('mc_version', width=150)
+        self.version_tree.column('type', width=50)
+        self.version_tree.column('date', width=120)
         
         # 添加滚动条
-        version_scrollbar = ttk.Scrollbar(version_list_frame, orient=tk.VERTICAL, command=version_tree.yview)
-        version_tree.configure(yscrollcommand=version_scrollbar.set)
+        version_scrollbar = ttk.Scrollbar(version_list_frame, orient=tk.VERTICAL, command=self.version_tree.yview)
+        self.version_tree.configure(yscrollcommand=version_scrollbar.set)
         
         # 布局
-        version_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.version_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         version_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # 填充版本数据
         for version in versions_data:
-            version_tree.insert('', tk.END, values=(
-                version.get('version_number', '未知'),
-                version.get('files', [])[0].get('filename','未知'),
-                version.get('loaders', []),
-                ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
-                version.get('version_type', '未知'),
-                version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
-            ), tags=(version.get('id'),))
+            if self.mod_minecraft_version_var.get() in version.get('game_versions', []) or self.mod_minecraft_version_var.get() == "全部":
+                if self.mod_modloader_var.get().lower() in version.get('loaders', []) or self.mod_modloader_var.get() == "全部":
+                    self.version_tree.insert('', tk.END, values=(
+                        version.get('version_number', '未知'),
+                        version.get('files', [])[0].get('filename','未知'),
+                        version.get('loaders', []),
+                        ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
+                        version.get('version_type', '未知'),
+                        version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
+                    ), tags=(version.get('id'),))
         
         # 选择的版本变量
         selected_version = [None]  # 使用列表以便在内部函数中修改
 
         def on_version_select(event):
             """当选择版本时"""
-            selection = version_tree.selection()
+            selection = self.version_tree.selection()
             if selection:
-                item = version_tree.item(selection[0])
+                item = self.version_tree.item(selection[0])
                 tags = item['tags']
                 if tags:
                     selected_version[0] = tags[0]
@@ -3368,7 +3553,7 @@ del /f /s /q "./cleangame.bat"''')
             version_window.destroy()
         
         # 绑定选择事件
-        version_tree.bind('<<TreeviewSelect>>', on_version_select)
+        self.version_tree.bind('<<TreeviewSelect>>', on_version_select)
         
         # 按钮框架
         button_frame = ttk.Frame(version_main_frame)
@@ -3396,6 +3581,21 @@ del /f /s /q "./cleangame.bat"''')
         
         # 返回选择的版本ID
         return selected_version[0]
+    
+    def load_mod_list(self, event):
+        """加载mod版本"""
+        self.version_tree.delete(*self.version_tree.get_children())
+        for version in self.versions_data:
+            if self.mod_minecraft_version_var.get() in version.get('game_versions', []) or self.mod_minecraft_version_var.get() == "全部":
+                if self.mod_modloader_var.get().lower() in version.get('loaders', []) or self.mod_modloader_var.get() == "全部":
+                    self.version_tree.insert('', tk.END, values=(
+                        version.get('version_number', '未知'),
+                        version.get('files', [])[0].get('filename','未知'),
+                        version.get('loaders', []),
+                        ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
+                        version.get('version_type', '未知'),
+                        version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
+                    ), tags=(version.get('id'),))
         
     def _download_mod_thread(self, project_id):
         """在后台线程中下载Mod"""
@@ -3409,14 +3609,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3646,6 +3846,13 @@ del /f /s /q "./cleangame.bat"''')
                     
             # 更新下拉列表
             self.shader_mc_version_combobox['value'] = self.version_list
+
+            try:
+                self.shader_minecraft_version_combobox['value'] = self.version_list
+                if self.version_list:
+                    self.shader_minecraft_version_var.set(self.version_list[0])
+            except:
+                pass
             
             # 设置默认选中版本为最新版本
             if self.version_list:
@@ -3659,7 +3866,7 @@ del /f /s /q "./cleangame.bat"''')
     def shader_log(self, message, level):
         """在光影包日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] [shaderpack] [{level}] {message}\n")
+            f.write(f"[{time.asctime()}] [shaderpack/{level}] {message}\n")
         self.shader_log_text.config(state=tk.NORMAL)
         self.shader_log_text.insert(tk.END, message + "\n")
         self.shader_log_text.config(state=tk.DISABLED)
@@ -3719,7 +3926,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3805,6 +4012,8 @@ del /f /s /q "./cleangame.bat"''')
         
     def select_shader_version(self, versions_data, project_name):
         """选择光影包版本"""
+        self.versions_data = versions_data
+
         # 创建版本选择窗口
         version_window = tk.Toplevel(self.shader_window)
         version_window.title(f"选择 {project_name} 的版本")
@@ -3821,12 +4030,24 @@ del /f /s /q "./cleangame.bat"''')
         title_label = ttk.Label(version_main_frame, text=f"选择 {project_name} 的版本", font=("微软雅黑", 16))
         title_label.pack(pady=(0, 10))
 
+        # 顶部框架
+        top_frame = ttk.Frame(version_main_frame, padding="0")
+        top_frame.pack(fill=tk.BOTH, expand=True)
+
         # 选择想要安装光影包的MC版本
         self.install_shader_version_var = tk.StringVar()
-        self.install_shader_version_combobox = ttk.Combobox(version_main_frame, textvariable=self.install_shader_version_var, state="readonly", width=20)
-        self.install_shader_version_combobox.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.install_shader_version_combobox = ttk.Combobox(top_frame, textvariable=self.install_shader_version_var, state="readonly", width=20)
+        self.install_shader_version_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
         self.install_shader_version_combobox['values'] = self.installed_versions
         self.install_shader_version_var.set(self.installed_versions[0])
+
+        # 选择光影包的MC版本
+        self.shader_minecraft_version_var = tk.StringVar()
+        self.shader_minecraft_version_combobox = ttk.Combobox(top_frame, textvariable=self.shader_minecraft_version_var, state="readonly", width=20)
+        self.shader_minecraft_version_combobox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.shader_minecraft_version_combobox.bind("<<ComboboxSelected>>", self.load_shader_version)
+
+        self.load_shader_version_list()
 
         # 版本列表框架
         version_list_frame = ttk.Frame(version_main_frame)
@@ -3834,48 +4055,49 @@ del /f /s /q "./cleangame.bat"''')
         
         # 创建Treeview来显示版本列表
         version_columns = ('version', 'shader_filename', 'mc_version', 'type', 'date')
-        version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
+        self.version_tree = ttk.Treeview(version_list_frame, columns=version_columns, show='headings', height=17)
         
         # 定义列标题
-        version_tree.heading('version', text='版本')
-        version_tree.heading('shader_filename', text='文件名')
-        version_tree.heading('mc_version', text='MC版本')
-        version_tree.heading('type', text='类型')
-        version_tree.heading('date', text='发布日期')
+        self.version_tree.heading('version', text='版本')
+        self.version_tree.heading('shader_filename', text='文件名')
+        self.version_tree.heading('mc_version', text='MC版本')
+        self.version_tree.heading('type', text='类型')
+        self.version_tree.heading('date', text='发布日期')
         
         # 设置列宽
-        version_tree.column('version', width=70)
-        version_tree.column('shader_filename', width=200)
-        version_tree.column('mc_version', width=360)
-        version_tree.column('type', width=50)
-        version_tree.column('date', width=120)
+        self.version_tree.column('version', width=70)
+        self.version_tree.column('shader_filename', width=200)
+        self.version_tree.column('mc_version', width=360)
+        self.version_tree.column('type', width=50)
+        self.version_tree.column('date', width=120)
         
         # 添加滚动条
-        version_scrollbar = ttk.Scrollbar(version_list_frame, orient=tk.VERTICAL, command=version_tree.yview)
-        version_tree.configure(yscrollcommand=version_scrollbar.set)
+        version_scrollbar = ttk.Scrollbar(version_list_frame, orient=tk.VERTICAL, command=self.version_tree.yview)
+        self.version_tree.configure(yscrollcommand=version_scrollbar.set)
         
         # 布局
-        version_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.version_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         version_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # 填充版本数据
         for version in versions_data:
-            version_tree.insert('', tk.END, values=(
-                version.get('version_number', '未知'),
-                version.get('files', [])[0].get('filename', '未知'),
-                ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
-                version.get('version_type', '未知'),
-                version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
-            ), tags=(version.get('id'),))
+            if self.shader_minecraft_version_var.get() == "全部" or self.shader_minecraft_version_var.get() in version.get('game_versions', []):
+                self.version_tree.insert('', tk.END, values=(
+                    version.get('version_number', '未知'),
+                    version.get('files', [])[0].get('filename', '未知'),
+                    ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
+                    version.get('version_type', '未知'),
+                    version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
+                ), tags=(version.get('id'),))
         
         # 选择的版本变量
         selected_version = [None]  # 使用列表以便在内部函数中修改
 
         def on_version_select(event):
             """当选择版本时"""
-            selection = version_tree.selection()
+            selection = self.version_tree.selection()
             if selection:
-                item = version_tree.item(selection[0])
+                item = self.version_tree.item(selection[0])
                 tags = item['tags']
                 if tags:
                     selected_version[0] = tags[0]
@@ -3888,7 +4110,7 @@ del /f /s /q "./cleangame.bat"''')
             version_window.destroy()
         
         # 绑定选择事件
-        version_tree.bind('<<TreeviewSelect>>', on_version_select)
+        self.version_tree.bind('<<TreeviewSelect>>', on_version_select)
         
         # 按钮框架
         button_frame = ttk.Frame(version_main_frame)
@@ -3916,6 +4138,21 @@ del /f /s /q "./cleangame.bat"''')
         
         # 返回选择的版本ID
         return selected_version[0]
+    
+    def load_shader_version(self, event):
+        """加载光影包版本"""
+        self.version_tree.delete(*self.version_tree.get_children())
+
+        # 填充版本数据
+        for version in self.versions_data:
+            if self.shader_minecraft_version_var.get() == "全部" or self.shader_minecraft_version_var.get() in version.get('game_versions', []):
+                self.version_tree.insert('', tk.END, values=(
+                    version.get('version_number', '未知'),
+                    version.get('files', [])[0].get('filename', '未知'),
+                    ', '.join(version.get('game_versions', [])) if version.get('game_versions') else '未知',
+                    version.get('version_type', '未知'),
+                    version.get('date_published', '未知')[:10] if version.get('date_published') else '未知'
+                ), tags=(version.get('id'),))
         
     def _download_shader_thread(self, project_id):
         """在后台线程中下载光影包"""
@@ -3929,14 +4166,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4191,7 +4428,7 @@ del /f /s /q "./cleangame.bat"''')
     def modpack_log(self, message, level):
         """在整合包日志区域显示消息"""
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-            f.write(f"[{time.asctime()}] [modpack] [{level}] {message}\n")
+            f.write(f"[{time.asctime()}] [modpack/{level}] {message}\n")
         self.modpack_log_text.config(state=tk.NORMAL)
         self.modpack_log_text.insert(tk.END, message + "\n")
         self.modpack_log_text.config(state=tk.DISABLED)
@@ -4255,7 +4492,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4472,14 +4709,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4571,6 +4808,8 @@ del /f /s /q "./cleangame.bat"''')
                 modloader = 'forge'
             elif 'fabric-loader' in index_data.get('dependencies', {}):
                 modloader = 'fabric'
+            elif 'quilt-loader' in index_data.get('dependencies', {}):
+                modloader = 'quilt'
             
             self.modpack_log(f"整合包信息: Minecraft {game_version}, 加载器: {modloader if modloader else '原版'}", "INFO")
             
@@ -4630,16 +4869,28 @@ del /f /s /q "./cleangame.bat"''')
                     if not os.path.exists(f"{self.minecraft_directory}/versions/{fabric_id}"):
                         self.modpack_log(f"需要安装Fabric Loader {fabric_loader_version}...", "INFO")
                         try:
-                            minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory, callback=callback)
+                            minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory, loader_version=fabric_loader_version, callback=callback)
                             self.modpack_log(f"Fabric Loader {fabric_loader_version} 安装完成", "INFO")
                         except Exception as e:
                             self.modpack_log(f"安装Fabric失败: {str(e)}", "ERROR")
+            
+            elif modloader == 'quilt':
+                quilt_loader_version = index_data.get('dependencies', {}).get('Quilt-loader')
+                if quilt_loader_version:
+                    quilt_id = f"quilt-loader-{quilt_loader_version}-{game_version}"
+                    if not os.path.exists(f"{self.minecraft_directory}/versions/{quilt_id}"):
+                        self.modpack_log(f"需要安装Quilt Loader {quilt_loader_version}...", "INFO")
+                        try:
+                            minecraft_launcher_lib.quilt.install_quilt(game_version, self.minecraft_directory, loader_version=quilt_loader_version, callback=callback)
+                            self.modpack_log(f"Quilt Loader {quilt_loader_version} 安装完成", "INFO")
+                        except Exception as e:
+                            self.modpack_log(f"安装Quilt失败: {str(e)}", "ERROR")
 
             if messagebox.askyesno("提示", "是否为安装的整合包启用版本隔离？"):
                 if not modloader:
                     isolation_dir = os.path.join(self.minecraft_directory, 'versions', game_version)
                 else:
-                    isolation_dir = os.path.join(self.minecraft_directory, 'versions', installed_version if modloader == 'forge' else fabric_id)
+                    isolation_dir = os.path.join(self.minecraft_directory, 'versions', (installed_version if modloader == 'forge' else (fabric_id if modloader == 'fabric' else quilt_id)))
                 os.makedirs(os.path.join(isolation_dir, 'config'), exist_ok=True)
             else:
                 if not modloader:
@@ -4683,7 +4934,7 @@ del /f /s /q "./cleangame.bat"''')
             if not modloader:
                 self.rename_version(game_version, self.version_name)
             else:
-                self.rename_version(installed_version if modloader == 'forge' else fabric_id, self.version_name)
+                self.rename_version(installed_version if modloader == 'forge' else (fabric_id if modloader == 'fabric' else quilt_id), self.version_name)
             
             # 清理临时文件
             shutil.rmtree(temp_dir)
@@ -4757,6 +5008,8 @@ del /f /s /q "./cleangame.bat"''')
                 modloader = 'forge'
             elif 'fabric-loader' in index_data.get('dependencies', {}):
                 modloader = 'fabric'
+            elif 'quilt-loader' in index_data.get('dependencies', {}):
+                modloader = 'quilt'
             
             self.modpack_log(f"整合包信息: Minecraft {game_version}, 加载器: {modloader if modloader else '原版'}", "INFO")
             
@@ -4816,10 +5069,22 @@ del /f /s /q "./cleangame.bat"''')
                     if not os.path.exists(f"{self.minecraft_directory}/versions/{fabric_id}"):
                         self.modpack_log(f"需要安装Fabric Loader {fabric_loader_version}...", "INFO")
                         try:
-                            minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory, callback=callback)
+                            minecraft_launcher_lib.fabric.install_fabric(game_version, self.minecraft_directory, loader_version=fabric_loader_version, callback=callback)
                             self.modpack_log(f"Fabric Loader {fabric_loader_version} 安装完成", "INFO")
                         except Exception as e:
                             self.modpack_log(f"安装Fabric失败: {str(e)}", "ERROR")
+            
+            elif modloader == 'quilt':
+                quilt_loader_version = index_data.get('dependencies', {}).get('quilt-loader')
+                if quilt_loader_version:
+                    quilt_id = f"quilt-loader-{quilt_loader_version}-{game_version}"
+                    if not os.path.exists(f"{self.minecraft_directory}/versions/{quilt_id}"):
+                        self.modpack_log(f"需要安装Quilt Loader {quilt_loader_version}...", "INFO")
+                        try:
+                            minecraft_launcher_lib.quilt.install_quilt(game_version, self.minecraft_directory, loader_version=quilt_loader_version, callback=callback)
+                            self.modpack_log(f"Quilt Loader {quilt_loader_version} 安装完成", "INFO")
+                        except Exception as e:
+                            self.modpack_log(f"安装Quilt失败: {str(e)}", "ERROR")
             
             # 下载依赖文件（模组、资源包等）
             self.modpack_log("正在下载整合包依赖文件...", "INFO")
@@ -4828,7 +5093,7 @@ del /f /s /q "./cleangame.bat"''')
                 if not modloader:
                     isolation_dir = os.path.join(self.minecraft_directory, 'versions', game_version)
                 else:
-                    isolation_dir = os.path.join(self.minecraft_directory, 'versions', installed_version if modloader == 'forge' else fabric_id)
+                    isolation_dir = os.path.join(self.minecraft_directory, 'versions', installed_version if modloader == 'forge' else (fabric_id if modloader == 'fabric' else quilt_id))
                 os.makedirs(os.path.join(isolation_dir, 'config'), exist_ok=True)
             else:
                 if not modloader:
@@ -4869,7 +5134,7 @@ del /f /s /q "./cleangame.bat"''')
             if not modloader:
                 self.rename_version(game_version, self.version_name)
             else:
-                self.rename_version(installed_version if modloader == 'forge' else fabric_id, self.version_name)
+                self.rename_version(installed_version if modloader == 'forge' else (fabric_id if modloader == 'fabric' else quilt_id), self.version_name)
 
             # 清理临时文件
             shutil.rmtree(extract_dir)
