@@ -132,7 +132,7 @@ class MinecraftLauncherGUI:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.1.0.0'
+            current_version = '1.1.1.0'
             have_later_version = False
 
             # 获取更新日志
@@ -371,7 +371,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/1.1 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/1.1.1 (Python Minecraft Launcher)'
                 }
             )
             
@@ -1554,10 +1554,13 @@ class MinecraftLauncherGUI:
         self.download_version_var = tk.StringVar()
         self.download_version_combobox = ttk.Combobox(download_frame, textvariable=self.download_version_var, state="readonly", width=40)
         self.download_version_combobox.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.download_version_combobox.bind("<<ComboboxSelected>>", self.load_minecraft_modloader_version)
+        
         self.download_modloader_var = tk.StringVar()
         self.download_modloader_var.set('原版')
         self.download_modloader_combobox = ttk.Combobox(download_frame, values = ['原版','Forge','Fabric', 'Quilt'], textvariable=self.download_modloader_var, state="readonly", width=40)
         self.download_modloader_combobox.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.download_modloader_combobox.bind("<<ComboboxSelected>>", self.load_modloader_version)
         
         # 刷新版本列表按钮
         refresh_button = ttk.Button(download_frame, text="刷新版本列表", command=self.load_version_list)
@@ -1566,6 +1569,33 @@ class MinecraftLauncherGUI:
         # 下载按钮
         self.download_button = ttk.Button(download_frame, text="下载", command=self.install_version)
         self.download_button.grid(row=3, column=1, pady=(0, 5))
+
+        # Forge版本框架
+        self.forge_version_frame = ttk.LabelFrame(dmain_frame, text="选择Forge版本", padding="10")
+        self.forge_version_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Forge版本下拉框
+        self.forge_version_var = tk.StringVar()
+        self.forge_version_combobox = ttk.Combobox(self.forge_version_frame, textvariable=self.forge_version_var, state="readonly")
+        self.forge_version_combobox.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        # Fabric版本框架
+        self.fabric_version_frame = ttk.LabelFrame(dmain_frame, text="选择Fabric版本", padding="10")
+        self.fabric_version_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Fabric版本下拉框
+        self.fabric_version_var = tk.StringVar()
+        self.fabric_version_combobox = ttk.Combobox(self.fabric_version_frame, textvariable=self.fabric_version_var, state="readonly")
+        self.fabric_version_combobox.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        # Quilt版本框架
+        self.quilt_version_frame = ttk.LabelFrame(dmain_frame, text="选择Quilt版本", padding="10")
+        self.quilt_version_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Quilt版本下拉框
+        self.quilt_version_var = tk.StringVar()
+        self.quilt_version_combobox = ttk.Combobox(self.quilt_version_frame, textvariable=self.quilt_version_var, state="readonly")
+        self.quilt_version_combobox.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
         # 显示非正式版
         self.show_non_release_var = tk.BooleanVar()
@@ -1576,12 +1606,18 @@ class MinecraftLauncherGUI:
         # 配置网格权重
         self.dwidgets.columnconfigure(0, weight=1)
         self.dwidgets.rowconfigure(0, weight=1)
+        dmain_frame.columnconfigure(0, weight=1)
         dmain_frame.columnconfigure(1, weight=1)
         dmain_frame.rowconfigure(0, weight=1)
+        dmain_frame.rowconfigure(1, weight=1)
         download_frame.columnconfigure(2, weight=1)
+        self.forge_version_frame.columnconfigure(0, weight=1)
+        self.fabric_version_frame.columnconfigure(0, weight=1)
+        self.quilt_version_frame.columnconfigure(0, weight=1)
 
         # 加载版本列表
         self.load_version_list()
+        self.load_modloader_version(None)
 
         # 绑定回车键下载
         self.dwidgets.bind("<Return>", lambda event: self.install_version())
@@ -1606,11 +1642,79 @@ class MinecraftLauncherGUI:
             # 设置默认选中版本为最新版本
             if self.version_list:
                 self.download_version_var.set(self.version_list[0])
+
+            # 加载模组加载器版本
+            self.load_minecraft_modloader_version(None)
                         
             self.log("版本列表加载完成", "INFO")
         except Exception as e:
             self.log(f"加载版本列表失败: {str(e)}", "ERROR")
             messagebox.showerror("错误", f"加载版本列表失败: {str(e)}")
+
+    def load_minecraft_modloader_version(self, event):
+        """加载MC版本的模组加载器"""
+        # 获取信息
+        version = self.download_version_var.get()
+        modloader = self.download_modloader_var.get()
+        version_list = []
+        if modloader == "Forge":
+            for forge_version in minecraft_launcher_lib.forge.list_forge_versions():
+                if f' {version}-' in f' {forge_version}':
+                    version_list.append(forge_version)
+
+            self.forge_version_combobox['value'] = version_list
+            if version_list:
+                self.forge_version_var.set(version_list[0])
+            else:
+                self.forge_version_var.set('')
+
+        elif modloader == "Fabric":
+            if minecraft_launcher_lib.fabric.is_minecraft_version_supported(version):
+                for fabric_version in minecraft_launcher_lib.fabric.get_all_loader_versions():
+                    version_list.append(fabric_version.get('version', ''))
+
+            self.fabric_version_combobox['value'] = version_list
+            if version_list:
+                self.fabric_version_var.set(version_list[0])
+            else:
+                self.fabric_version_var.set('')
+
+        elif modloader == "Quilt":
+            if minecraft_launcher_lib.fabric.is_minecraft_version_supported(version):
+                for quilt_version in minecraft_launcher_lib.quilt.get_all_loader_versions():
+                    version_list.append(quilt_version.get('version', ''))
+
+            self.quilt_version_combobox['value'] = version_list
+            if version_list:
+                self.quilt_version_var.set(version_list[0])
+            else:
+                self.quilt_version_var.set('')
+
+    def load_modloader_version(self, event):
+        """加载模组加载器版本"""
+        modloader = self.download_modloader_var.get()
+        if modloader == "原版":
+            self.forge_version_frame.grid_remove()
+            self.fabric_version_frame.grid_remove()
+            self.quilt_version_frame.grid_remove()
+
+        elif modloader == "Forge":
+            self.forge_version_frame.grid()
+            self.fabric_version_frame.grid_remove()
+            self.quilt_version_frame.grid_remove()
+
+        elif modloader == "Fabric":
+            self.forge_version_frame.grid_remove()
+            self.fabric_version_frame.grid()
+            self.quilt_version_frame.grid_remove()
+
+        elif modloader == "Quilt":
+            self.forge_version_frame.grid_remove()
+            self.fabric_version_frame.grid_remove()
+            self.quilt_version_frame.grid()
+
+        # 加载MC版本
+        self.load_minecraft_modloader_version(None)
 
     def install_version(self):
         """下载选中的Minecraft版本"""
@@ -1671,11 +1775,10 @@ class MinecraftLauncherGUI:
             try:
                 self.log(f"正在安装Forge for Minecraft {version}...", "INFO")
 
-                # 获取Forge最新版本
-                forge_version = minecraft_launcher_lib.forge.find_forge_version(version)
-                if forge_version is None:
-                    self.log(f"未找到适用于Minecraft {version}的Forge版本", "WARN")
-                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Forge版本")
+                # 获取选择的Forge版本
+                forge_version = self.forge_version_var.get()
+                if not forge_version:
+                    messagebox.showwarning("警告", "请选择Forge版本！")
 
                     # 重新启用按钮
                     self.download_button.config(state=tk.NORMAL)
@@ -1702,9 +1805,8 @@ class MinecraftLauncherGUI:
         elif modloader == 'Fabric':
             try:
                 self.log(f"正在安装Fabric for Minecraft {version}...", "INFO")
-                if not minecraft_launcher_lib.fabric.is_minecraft_version_supported(version):
-                    self.log(f"未找到适用于Minecraft {version}的Fabric版本", "WARN")
-                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Fabric版本")
+                if not self.fabric_version_var.get():
+                    messagebox.showwarning("警告", "请选择Fabric版本！")
 
                     # 重新启用按钮
                     self.download_button.config(state=tk.NORMAL)
@@ -1715,6 +1817,7 @@ class MinecraftLauncherGUI:
                 minecraft_launcher_lib.fabric.install_fabric(
                     version,
                     self.minecraft_directory,
+                    loader_version=self.fabric_version_var.get(),
                     callback=callback
                 )
                 self.log(f"Fabric for Minecraft {version} 安装完成!", "INFO")
@@ -1730,9 +1833,8 @@ class MinecraftLauncherGUI:
         elif modloader == 'Quilt':
             try:
                 self.log(f"正在安装Quilt for Minecraft {version}...", "INFO")
-                if not minecraft_launcher_lib.quilt.is_minecraft_version_supported(version):
-                    self.log(f"未找到适用于Minecraft {version}的Quilt版本", "WARN")
-                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Quilt版本")
+                if not self.quilt_version_var.get():
+                    messagebox.showwarning("警告", "请选择Quilt版本！")
 
                     # 重新启用按钮
                     self.download_button.config(state=tk.NORMAL)
@@ -1743,6 +1845,7 @@ class MinecraftLauncherGUI:
                 minecraft_launcher_lib.quilt.install_quilt(
                     version,
                     self.minecraft_directory,
+                    loader_version=self.quilt_version_var.get(),
                     callback=callback
                 )
                 self.log(f"Quilt for Minecraft {version} 安装完成!", "INFO")
@@ -1884,7 +1987,7 @@ del /f /s /q "./cleangame.bat"''')
         help_menu.add_command(label="作品（作者）主页", command=self.homepage)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
-        help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.1\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.1.1\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         # 主菜单
         menu.add_cascade(label="下载", menu=download_menu)
@@ -2268,7 +2371,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2545,14 +2648,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2830,7 +2933,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3069,14 +3172,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3357,7 +3460,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3609,14 +3712,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3926,7 +4029,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4166,14 +4269,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4492,7 +4595,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4709,14 +4812,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
