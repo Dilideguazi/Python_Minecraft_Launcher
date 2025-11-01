@@ -133,7 +133,7 @@ class MinecraftLauncherGUI:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.1.1.1'
+            current_version = '1.1.1.2'
             have_later_version = False
 
             # 获取更新日志
@@ -1564,6 +1564,12 @@ class MinecraftLauncherGUI:
         self.download_modloader_combobox = ttk.Combobox(download_frame, values = ['原版','Forge','Fabric', 'Quilt'], textvariable=self.download_modloader_var, state="readonly", width=40)
         self.download_modloader_combobox.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         self.download_modloader_combobox.bind("<<ComboboxSelected>>", self.load_modloader_version)
+
+        # 显示非正式版
+        self.show_non_release_var = tk.BooleanVar()
+        show_non_release_checkbox = ttk.Checkbutton(download_frame, text="显示非正式版", variable=self.show_non_release_var, 
+                                           command=lambda: self.load_version_list())
+        show_non_release_checkbox.grid(row=3, column=2, pady=(0, 5))
         
         # 刷新版本列表按钮
         refresh_button = ttk.Button(download_frame, text="刷新版本列表", command=self.load_version_list)
@@ -1600,11 +1606,9 @@ class MinecraftLauncherGUI:
         self.quilt_version_combobox = ttk.Combobox(self.quilt_version_frame, textvariable=self.quilt_version_var, state="readonly")
         self.quilt_version_combobox.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
-        # 显示非正式版
-        self.show_non_release_var = tk.BooleanVar()
-        show_non_release_checkbox = ttk.Checkbutton(download_frame, text="显示非正式版", variable=self.show_non_release_var, 
-                                           command=lambda: self.load_version_list())
-        show_non_release_checkbox.grid(row=3, column=2, pady=(0, 5))
+        self.download_isolation_var = tk.BooleanVar(value=False)
+        self.download_isolation_checkbox = ttk.Checkbutton(dmain_frame, text="为下载的版本启用版本隔离", variable=self.download_isolation_var)
+        self.download_isolation_checkbox.grid(row=2, column=0, columnspan=2, pady=(0, 10))
         
         # 配置网格权重
         self.dwidgets.columnconfigure(0, weight=1)
@@ -1768,6 +1772,12 @@ class MinecraftLauncherGUI:
                     self.minecraft_directory,
                     callback=callback
                 )
+
+                # 启用版本隔离
+                if self.download_isolation_var.get():
+                    config_directory = os.path.join(self.minecraft_directory, 'versions', version, 'config')
+                    os.makedirs(config_directory)
+
                 self.log(f"Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Minecraft {version} 安装完成!")
             except Exception as e:
@@ -1794,6 +1804,11 @@ class MinecraftLauncherGUI:
                     self.minecraft_directory,
                     callback=callback
                 )
+
+                # 启用版本隔离
+                if self.download_isolation_var.get():
+                    config_directory = os.path.join(self.minecraft_directory, 'versions', forge_version, 'config')
+                    os.makedirs(config_directory)
 
                 self.log(f"Forge {forge_version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Forge {forge_version} 安装完成!")
@@ -1823,6 +1838,12 @@ class MinecraftLauncherGUI:
                     loader_version=self.fabric_version_var.get(),
                     callback=callback
                 )
+
+                # 启用版本隔离
+                if self.download_isolation_var.get():
+                    config_directory = os.path.join(self.minecraft_directory, 'versions', self.fabric_version_var.get(), 'config')
+                    os.makedirs(config_directory)
+                
                 self.log(f"Fabric for Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Fabric for Minecraft {version} 安装完成!")
             except FileNotFoundError:
@@ -1851,6 +1872,12 @@ class MinecraftLauncherGUI:
                     loader_version=self.quilt_version_var.get(),
                     callback=callback
                 )
+
+                # 启用版本隔离
+                if self.download_isolation_var.get():
+                    config_directory = os.path.join(self.minecraft_directory, self.quilt_version_var.get(), 'config')
+                    os.makedirs(config_directory)
+
                 self.log(f"Quilt for Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Quilt for Minecraft {version} 安装完成!")
             except FileNotFoundError:
@@ -1994,7 +2021,7 @@ del /f /s /q "./cleangame.bat"''')
         help_menu.add_command(label="作品（作者）主页", command=self.homepage)
         help_menu.add_command(label = "检查更新",command = lambda: self.check_update(True))
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
-        help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.1.1-hotfix.1 (Win7 Edition)\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.1.1-hotfix.2 (Win7 Edition)\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
 
         # 主菜单
         menu.add_cascade(label="下载", menu=download_menu)
