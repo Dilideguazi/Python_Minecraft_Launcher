@@ -2,6 +2,8 @@ import minecraft_launcher_lib
 import subprocess
 import sys
 import os
+import psutil
+import pygetwindow as gw
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, filedialog, simpledialog
 from PIL import Image, ImageTk
@@ -28,6 +30,16 @@ class MinecraftLauncherGUI:
                 os.makedirs("logs")
             
             with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+                print("""
+*********************************************************
+*欢迎使用Python Minecraft Launcher!                     *
+*以下是版权声明：                                       *
+*Copyright © 2025 Dilideguazi. All rights reserved.     *
+*未经许可禁止转载                                       *
+*本软件遵循GPLv3开源协议，请严格遵守协议使用            *
+*********************************************************
+""")
+                print(f"[{time.asctime()}] 程序开始运行")
                 f.write(f"[{time.asctime()}] 程序开始运行\n")
             
             # 使用 PIL 打开PNG图片
@@ -42,7 +54,7 @@ class MinecraftLauncherGUI:
             
             # Minecraft目录
             # self.minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
-            self.minecraft_directory = f'{os.path.abspath('')}/.minecraft'
+            self.minecraft_directory = f'{os.path.abspath("")}/.minecraft'
 
             
             # 初始化设置
@@ -93,16 +105,16 @@ class MinecraftLauncherGUI:
             
             # 加载LittleSkin设置
             self.load_littleskin_credentials()
-    
         except Exception as e:
             messagebox.showerror("错误", f"程序初始化失败：{e}")
+            sys.exit(-1)
 
     def resource_path(self, relative_path):
         """获取资源的绝对路径"""
         try:
             # Nuitka 打包后，__file__ 指向临时目录或可执行文件位置
             base_path = os.path.dirname(os.path.abspath(__file__))
-        except Exception:
+        except:
             base_path = os.path.abspath(".")
 
         return os.path.join(base_path, relative_path)
@@ -123,6 +135,87 @@ class MinecraftLauncherGUI:
         except Exception as e:
             self.log(f"请求失败: {e}", "ERROR")
             messagebox.showerror("错误", f"请求失败: {e}")
+
+    def check_update(self, from_menu):
+        """检查更新"""
+        try:
+            # 获取最新版本
+            check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
+            
+            current_version = '1.1.1.3'
+            have_later_version = False
+
+            # 获取更新日志
+            patch_notes = json.loads(check_update).get('patch_notes', '')
+            
+            # 一级一级版本号比对
+            for i, version_name in enumerate(json.loads(check_update).get('latest_version', '0')):
+                if i % 2 == 0:
+                    if int(version_name) > int(current_version[i]):
+                        have_later_version = True
+
+            # 如果存在更新版本，下载它
+            if have_later_version:
+                version = json.loads(check_update).get('latest_version')
+                if messagebox.askyesno("提示", f"存在新版本：{version[:-2] if not int(version[6]) else version[:-2] + '-hotfix.' + version[-1]}，更新内容：{patch_notes}，是否更新？"):
+                    # 创建一个顶层窗口来显示进度条
+                    progress_window = tk.Toplevel(self.root)
+                    progress_window.title("下载进度")
+                    progress_window.geometry("300x100")
+
+                    progress_window.resizable(False, False)
+                    progress_window.transient(self.root)
+                    progress_window.grab_set()
+                    
+                    # 添加进度条
+                    progress_label = ttk.Label(progress_window, text="正在下载最新版本...")
+                    progress_label.pack(pady=5)
+
+                    progress_info_label = ttk.Label(progress_window, text="")
+                    progress_info_label.pack(pady=5)
+                    
+                    progress_bar = ttk.Progressbar(progress_window, orient="horizontal", length=280, mode="determinate")
+                    progress_bar.pack(pady=10)
+                    
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                    }
+                    req = urllib.request.Request('https://pmcldownloadserver.dpdns.org/PMCL.exe', headers=headers)
+                    response = urllib.request.urlopen(req)
+                    
+                    # 获取文件大小
+                    total_size = int(response.info().get('Content-Length', '0'))
+                    progress_bar["maximum"] = total_size
+
+                    # 下载文件并更新进度条
+                    def download_with_progress():
+                        downloaded = 0
+                        with open('update.exe', 'wb') as f:
+                            while True:
+                                chunk = response.read(8192)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                progress_info_label["text"] = f"{self.format_file_size(downloaded)}/{self.format_file_size(total_size)} {downloaded / total_size * 100:.1f}%"
+                                progress_bar["value"] = downloaded
+                                progress_window.update_idletasks()
+
+                        # 下载完成后关闭进度窗口并继续更新过程
+                        progress_window.destroy()
+                        self.install_update()
+
+                    # 在新线程中下载更新
+                    download_update_thread = threading.Thread(target=download_with_progress)
+                    download_update_thread.daemon = True
+                    download_update_thread.start()
+
+            elif from_menu:
+                messagebox.showinfo("提示", "已是最新版本")
+        except Exception as e:
+            self.log(f"检查或更新新版本失败：{e}", "ERROR")
+            messagebox.showerror("错误", f"检查或更新新版本失败：{e}")
+
         
     def create_widgets(self):
         # 主框架
@@ -209,8 +302,10 @@ class MinecraftLauncherGUI:
         
     def log(self, message, level):
         """在日志区域显示消息"""
+        print(f"[{time.asctime()}] [root/{level}] {message}")
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
             f.write(f"[{time.asctime()}] [root/{level}] {message}\n")
+        
         self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.config(state=tk.DISABLED)
@@ -288,7 +383,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/1.0.4 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/1.1.1 (Python Minecraft Launcher)'
                 }
             )
             
@@ -1279,6 +1374,96 @@ class MinecraftLauncherGUI:
             launch_thread = threading.Thread(target=self._launch_minecraft_thread, args=(version, options))
         launch_thread.daemon = True
         launch_thread.start()
+
+        # Minecraft进程特征
+        self.process_indicators = [
+            'net.minecraft.client.main.Main',
+            'net.minecraft.launchwrapper.Launch',
+            'com.mojang.',
+            '--gameDir', '--version', '--assetsDir'
+        ]
+        
+        # Minecraft窗口类特征
+        self.window_class_indicators = ['LWJGL', 'GLFW', 'SunAwtFrame']
+        
+        # 已知的Minecraft相关进程名
+        self.minecraft_process_names = ['javaw.exe', 'java.exe', 'minecraft.exe']
+
+        # 初始化窗口数量
+        self.window_count = len(gw.getAllWindows())
+    
+    def check_process_by_cmdline(self):
+        """通过命令行参数检测"""
+        for process in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                if not process.info['cmdline']:
+                    continue
+                    
+                cmdline = ' '.join(process.info['cmdline']).lower()
+                process_name = process.info['name'].lower() if process.info['name'] else ''
+                
+                # 检查是否是Java进程
+                if any(name in process_name for name in ['java', 'javaw']):
+                    # 检查Minecraft特征
+                    minecraft_indicators = 0
+                    
+                    # 检查主类
+                    if any(indicator in cmdline for indicator in 
+                          ['net.minecraft.client.main.main', 'net.minecraft.launchwrapper.launch']):
+                        minecraft_indicators += 2
+                    
+                    # 检查启动参数
+                    if any(param in cmdline for param in 
+                          ['--gamedir', '--version', '--assetsdir']):
+                        minecraft_indicators += 1
+                    
+                    # 检查JVM参数（Minecraft通常有内存设置）
+                    if any(param in cmdline for param in ['-xmx', '-xms']):
+                        minecraft_indicators += 1
+                    
+                    if minecraft_indicators >= 2:
+                        return True
+                        
+            except (psutil.AccessDenied, psutil.NoSuchProcess):
+                continue
+        return False
+    
+    def check_by_window(self):
+        """通过窗口数量检测"""
+        if (len(gw.getAllWindows()) - self.window_count) > 0:
+            self.window_count = len(gw.getAllWindows())
+            return True
+        self.window_count = len(gw.getAllWindows())
+        return False
+    
+    def check_by_memory_usage(self):
+        """通过内存使用模式检测（Minecraft通常使用大量内存）"""
+        for process in psutil.process_iter(['pid', 'name', 'memory_info']):
+            try:
+                if process.info['name'] and 'java' in process.info['name'].lower():
+                    memory_mb = process.info['memory_info'].rss / 1024 / 1024
+                    # Minecraft通常使用超过512MB内存
+                    if memory_mb > 512:
+                        # 进一步验证是否是Minecraft
+                        cmdline = ' '.join(process.cmdline()).lower()
+                        if 'net.minecraft' in cmdline or 'mojang' in cmdline:
+                            return True
+            except:
+                continue
+        return False
+    
+    def is_minecraft_running(self):
+        """综合检测Minecraft是否运行"""
+        methods = [
+            self.check_process_by_cmdline,
+            self.check_by_memory_usage
+        ]
+        
+        # 如果任一方法检测到Minecraft，返回True
+        for method in methods:
+            if method() and self.check_by_window():
+                return True
+        return False
         
     def _launch_minecraft_thread(self, version, options):
         """在后台线程中启动Minecraft（离线模式）"""
@@ -1312,7 +1497,14 @@ class MinecraftLauncherGUI:
                         shutil.copy2(self.skin_path, f'{skins_dir}/LocalSkin/skins/{username}.png')
                         self.log(f"皮肤已应用: {self.skin_path}", "INFO")
                     else:
-                        self.log("应用皮肤失败: 未找到CustomSkinLoader", "WARN")
+                        skins_dir = f'{self.minecraft_directory}/cachedImages/skins'
+                        if os.path.exists(skins_dir):
+                            if os.path.exists(f'{skins_dir}/cachedImages/skins/{username}.png'):
+                                os.remove(f'{skins_dir}/cachedImages/skins/{username}.png')
+                            shutil.copy2(self.skin_path, f'{skins_dir}/{username}.png')
+                            self.log(f"皮肤已应用: {self.skin_path}", "INFO")
+                        else:
+                            self.log("应用皮肤失败: 未找到CustomSkinLoader或OfflineSkins", "WARN")
                 except Exception as e:
                     self.log(f"应用皮肤失败: {str(e)}", "ERROR")
             
@@ -1330,11 +1522,32 @@ class MinecraftLauncherGUI:
             if not self.use_java:
                 minecraft_command[0] = 'javaw'.join(minecraft_command[0].rsplit('java', 1))
                 
-            self.log(str(minecraft_command), "INFO")
-            self.log("Minecraft已启动", "INFO")
+            print(str(minecraft_command))
+            self.log("Minecraft已启动，请等待窗口出现", "INFO")
 
             # 重新启用启动按钮
             self.launch_button.config(state=tk.NORMAL)
+
+            result = None
+
+            def detect_launch():
+                """检测Minecraft启动"""
+                # 记录时间
+                start_time = time.time()
+                while True:
+                    if self.is_minecraft_running():
+                        self.log(f"Minecraft {version} 启动成功！", "INFO")
+                        return
+                    if (time.time() - start_time) > 300: # 5分钟后自动超时
+                        self.log(f"Minecraft {version} 没有启动，已自动超时", "WARN")
+                    if result:
+                        return
+                    time.sleep(0.1)
+
+            # 检测启动
+            detect_launch_thread = threading.Thread(target=detect_launch)
+            detect_launch_thread.daemon = True
+            detect_launch_thread.start()
             
             # 启动Minecraft
             result = subprocess.run(minecraft_command, cwd=self.minecraft_directory)
@@ -1428,14 +1641,36 @@ class MinecraftLauncherGUI:
             if not self.use_java:
                 minecraft_command[0] = 'javaw'.join(minecraft_command[0].rsplit('java', 1))
                 
-            self.log(str(minecraft_command), "INFO")
-            self.log("Minecraft已启动", "INFO")
+            print(str(minecraft_command))
+            self.log("Minecraft已启动，请等待窗口出现", "INFO")
 
             # 重新启用启动按钮
             self.launch_button.config(state=tk.NORMAL)
 
+            result = None
+
+            def detect_launch():
+                """检测Minecraft启动"""
+                # 记录时间
+                start_time = time.time()
+                while True:
+                    if self.is_minecraft_running():
+                        self.log(f"Minecraft {version} 启动成功！", "INFO")
+                        return
+                    if (time.time() - start_time) > 300: # 5分钟后自动超时
+                        self.log(f"Minecraft {version} 没有启动，已自动超时", "WARN")
+                    if result:
+                        return
+                    time.sleep(0.1)
+
+            # 检测启动
+            detect_launch_thread = threading.Thread(target=detect_launch)
+            detect_launch_thread.daemon = True
+            detect_launch_thread.start()
+
             # 启动Minecraft
             result = subprocess.run(minecraft_command, cwd=self.minecraft_directory)
+            
             if result.returncode:
                 self.log(f"游戏以错误代码{result.returncode}退出", "WARN")
                 messagebox.showerror("错误", f"游戏以错误代码{result.returncode}退出")
@@ -1453,7 +1688,7 @@ class MinecraftLauncherGUI:
         self.dwidgets = tk.Toplevel(self.root)
         self.dwidgets.title("下载版本")
         
-        self.dwidgets.geometry(f"500x300+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-300)/2)}")
+        self.dwidgets.geometry(f"500x420+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-420)/2)}")
         
         self.dwidgets.grab_set()
         self.dwidgets.resizable(False, False)
@@ -1471,10 +1706,19 @@ class MinecraftLauncherGUI:
         self.download_version_var = tk.StringVar()
         self.download_version_combobox = ttk.Combobox(download_frame, textvariable=self.download_version_var, state="readonly", width=40)
         self.download_version_combobox.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.download_version_combobox.bind("<<ComboboxSelected>>", self.load_minecraft_modloader_version)
+        
         self.download_modloader_var = tk.StringVar()
         self.download_modloader_var.set('原版')
         self.download_modloader_combobox = ttk.Combobox(download_frame, values = ['原版','Forge','Fabric', 'Quilt'], textvariable=self.download_modloader_var, state="readonly", width=40)
         self.download_modloader_combobox.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.download_modloader_combobox.bind("<<ComboboxSelected>>", self.load_modloader_version)
+
+        # 显示非正式版
+        self.show_non_release_var = tk.BooleanVar()
+        show_non_release_checkbox = ttk.Checkbutton(download_frame, text="显示非正式版", variable=self.show_non_release_var, 
+                                           command=lambda: self.load_version_list())
+        show_non_release_checkbox.grid(row=3, column=2, pady=(0, 5))
         
         # 刷新版本列表按钮
         refresh_button = ttk.Button(download_frame, text="刷新版本列表", command=self.load_version_list)
@@ -1484,21 +1728,64 @@ class MinecraftLauncherGUI:
         self.download_button = ttk.Button(download_frame, text="下载", command=self.install_version)
         self.download_button.grid(row=3, column=1, pady=(0, 5))
 
-        # 显示非正式版
-        self.show_non_release_var = tk.BooleanVar()
-        show_non_release_checkbox = ttk.Checkbutton(download_frame, text="显示非正式版", variable=self.show_non_release_var, 
-                                           command=lambda: self.load_version_list())
-        show_non_release_checkbox.grid(row=3, column=2, pady=(0, 5))
+        # Forge版本框架
+        self.forge_version_frame = ttk.LabelFrame(dmain_frame, text="选择Forge版本", padding="10")
+        self.forge_version_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Forge版本下拉框
+        self.forge_version_var = tk.StringVar()
+        self.forge_version_combobox = ttk.Combobox(self.forge_version_frame, textvariable=self.forge_version_var, state="readonly")
+        self.forge_version_combobox.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        # Fabric版本框架
+        self.fabric_version_frame = ttk.LabelFrame(dmain_frame, text="选择Fabric版本", padding="10")
+        self.fabric_version_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Fabric版本下拉框
+        self.fabric_version_var = tk.StringVar()
+        self.fabric_version_combobox = ttk.Combobox(self.fabric_version_frame, textvariable=self.fabric_version_var, state="readonly")
+        self.fabric_version_combobox.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        # Quilt版本框架
+        self.quilt_version_frame = ttk.LabelFrame(dmain_frame, text="选择Quilt版本", padding="10")
+        self.quilt_version_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Quilt版本下拉框
+        self.quilt_version_var = tk.StringVar()
+        self.quilt_version_combobox = ttk.Combobox(self.quilt_version_frame, textvariable=self.quilt_version_var, state="readonly")
+        self.quilt_version_combobox.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        # 版本选项框架
+        version_options_frame = ttk.LabelFrame(dmain_frame, text="版本选项", padding='10')
+        version_options_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # 版本名称选项
+        ttk.Label(version_options_frame, text="请输入自定义版本名称(可选):").grid(row=0, column=0, pady=(0, 10))
+        self.version_name_var = tk.StringVar()
+        self.version_name_entry = ttk.Entry(version_options_frame, textvariable=self.version_name_var)
+        self.version_name_entry.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        # 启用版本隔离选项
+        self.download_isolation_var = tk.BooleanVar(value=False)
+        self.download_isolation_checkbox = ttk.Checkbutton(version_options_frame, text="为下载的版本启用版本隔离", variable=self.download_isolation_var)
+        self.download_isolation_checkbox.grid(row=2, column=0, pady=(0, 10))
         
         # 配置网格权重
         self.dwidgets.columnconfigure(0, weight=1)
         self.dwidgets.rowconfigure(0, weight=1)
+        dmain_frame.columnconfigure(0, weight=1)
         dmain_frame.columnconfigure(1, weight=1)
         dmain_frame.rowconfigure(0, weight=1)
+        dmain_frame.rowconfigure(1, weight=1)
         download_frame.columnconfigure(2, weight=1)
+        self.forge_version_frame.columnconfigure(0, weight=1)
+        self.fabric_version_frame.columnconfigure(0, weight=1)
+        self.quilt_version_frame.columnconfigure(0, weight=1)
+        version_options_frame.columnconfigure(0, weight=1)
 
         # 加载版本列表
         self.load_version_list()
+        self.load_modloader_version(None)
 
         # 绑定回车键下载
         self.dwidgets.bind("<Return>", lambda event: self.install_version())
@@ -1523,11 +1810,79 @@ class MinecraftLauncherGUI:
             # 设置默认选中版本为最新版本
             if self.version_list:
                 self.download_version_var.set(self.version_list[0])
+
+            # 加载模组加载器版本
+            self.load_minecraft_modloader_version(None)
                         
             self.log("版本列表加载完成", "INFO")
         except Exception as e:
             self.log(f"加载版本列表失败: {str(e)}", "ERROR")
             messagebox.showerror("错误", f"加载版本列表失败: {str(e)}")
+
+    def load_minecraft_modloader_version(self, event):
+        """加载MC版本的模组加载器"""
+        # 获取信息
+        version = self.download_version_var.get()
+        modloader = self.download_modloader_var.get()
+        version_list = []
+        if modloader == "Forge":
+            for forge_version in minecraft_launcher_lib.forge.list_forge_versions():
+                if f' {version}-' in f' {forge_version}':
+                    version_list.append(forge_version)
+
+            self.forge_version_combobox['value'] = version_list
+            if version_list:
+                self.forge_version_var.set(version_list[0])
+            else:
+                self.forge_version_var.set('')
+
+        elif modloader == "Fabric":
+            if minecraft_launcher_lib.fabric.is_minecraft_version_supported(version):
+                for fabric_version in minecraft_launcher_lib.fabric.get_all_loader_versions():
+                    version_list.append(fabric_version.get('version', ''))
+
+            self.fabric_version_combobox['value'] = version_list
+            if version_list:
+                self.fabric_version_var.set(version_list[0])
+            else:
+                self.fabric_version_var.set('')
+
+        elif modloader == "Quilt":
+            if minecraft_launcher_lib.fabric.is_minecraft_version_supported(version):
+                for quilt_version in minecraft_launcher_lib.quilt.get_all_loader_versions():
+                    version_list.append(quilt_version.get('version', ''))
+
+            self.quilt_version_combobox['value'] = version_list
+            if version_list:
+                self.quilt_version_var.set(version_list[0])
+            else:
+                self.quilt_version_var.set('')
+
+    def load_modloader_version(self, event):
+        """加载模组加载器版本"""
+        modloader = self.download_modloader_var.get()
+        if modloader == "原版":
+            self.forge_version_frame.grid_remove()
+            self.fabric_version_frame.grid_remove()
+            self.quilt_version_frame.grid_remove()
+
+        elif modloader == "Forge":
+            self.forge_version_frame.grid()
+            self.fabric_version_frame.grid_remove()
+            self.quilt_version_frame.grid_remove()
+
+        elif modloader == "Fabric":
+            self.forge_version_frame.grid_remove()
+            self.fabric_version_frame.grid()
+            self.quilt_version_frame.grid_remove()
+
+        elif modloader == "Quilt":
+            self.forge_version_frame.grid_remove()
+            self.fabric_version_frame.grid_remove()
+            self.quilt_version_frame.grid()
+
+        # 加载MC版本
+        self.load_minecraft_modloader_version(None)
 
     def install_version(self):
         """下载选中的Minecraft版本"""
@@ -1578,6 +1933,16 @@ class MinecraftLauncherGUI:
                     self.minecraft_directory,
                     callback=callback
                 )
+                
+                # 启用版本隔离
+                if self.download_isolation_var.get():
+                    config_directory = os.path.join(self.minecraft_directory, 'versions', version, 'config')
+                    os.makedirs(config_directory)
+
+                # 重命名版本
+                if self.version_name_var.get():
+                    self.rename_version(version, self.version_name_var.get())
+
                 self.log(f"Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Minecraft {version} 安装完成!")
             except Exception as e:
@@ -1588,16 +1953,19 @@ class MinecraftLauncherGUI:
             try:
                 self.log(f"正在安装Forge for Minecraft {version}...", "INFO")
 
-                # 获取Forge最新版本
-                forge_version = minecraft_launcher_lib.forge.find_forge_version(version)
-                if forge_version is None:
-                    self.log(f"未找到适用于Minecraft {version}的Forge版本", "WARN")
-                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Forge版本")
+                # 获取选择的Forge版本
+                forge_version = self.forge_version_var.get()
+                if not forge_version:
+                    messagebox.showwarning("警告", "请选择Forge版本！")
 
                     # 重新启用按钮
                     self.download_button.config(state=tk.NORMAL)
                     self.launch_button.config(state=tk.NORMAL)
                     return
+                
+                # 获取旧的版本列表
+                self.load_installed_versions()
+                old_installed_list = self.installed_versions
 
                 # 安装Forge
                 minecraft_launcher_lib.forge.install_forge_version(
@@ -1605,9 +1973,30 @@ class MinecraftLauncherGUI:
                     self.minecraft_directory,
                     callback=callback
                 )
+                self.load_installed_versions()
+
+                new_installed_list = self.installed_versions
+                for item in old_installed_list:
+                    new_installed_list.remove(item)
+                for item in new_installed_list:
+                    if 'forge' in item.lower():
+                        forge_id = item
+
+                # 启用版本隔离
+                if self.download_isolation_var.get():
+                    config_directory = os.path.join(self.minecraft_directory, 'versions', forge_id, 'config')
+                    os.makedirs(config_directory)
+
+                # 重命名版本
+                if self.version_name_var.get():
+                    self.rename_version(forge_id, self.version_name_var.get())
 
                 self.log(f"Forge {forge_version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Forge {forge_version} 安装完成!")
+            except FileNotFoundError:
+                self.log("Forge安装失败，可能是没有配置Java环境", "ERROR")
+                if messagebox.askyesno("提示", "Forge安装失败，可能是没有配置Java环境，是否配置？"):
+                    self.add_java_path()
             except Exception as e:
                 self.log(f"Forge安装失败: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"Forge安装失败: {str(e)}")
@@ -1615,9 +2004,8 @@ class MinecraftLauncherGUI:
         elif modloader == 'Fabric':
             try:
                 self.log(f"正在安装Fabric for Minecraft {version}...", "INFO")
-                if not minecraft_launcher_lib.fabric.is_minecraft_version_supported(version):
-                    self.log(f"未找到适用于Minecraft {version}的Fabric版本", "WARN")
-                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Fabric版本")
+                if not self.fabric_version_var.get():
+                    messagebox.showwarning("警告", "请选择Fabric版本！")
 
                     # 重新启用按钮
                     self.download_button.config(state=tk.NORMAL)
@@ -1628,10 +2016,26 @@ class MinecraftLauncherGUI:
                 minecraft_launcher_lib.fabric.install_fabric(
                     version,
                     self.minecraft_directory,
+                    loader_version=self.fabric_version_var.get(),
                     callback=callback
                 )
+                fabric_id = f'fabric-loader-{self.fabric_version_var.get()}-{version}'
+
+                # 启用版本隔离
+                if self.download_isolation_var.get():
+                    config_directory = os.path.join(self.minecraft_directory, 'versions', fabric_id, 'config')
+                    os.makedirs(config_directory)
+
+                # 重命名版本
+                if self.version_name_var.get():
+                    self.rename_version(fabric_id, self.version_name_var.get())
+                
                 self.log(f"Fabric for Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Fabric for Minecraft {version} 安装完成!")
+            except FileNotFoundError:
+                self.log("Fabric安装失败，可能是没有配置Java环境", "ERROR")
+                if messagebox.askyesno("提示", "Fabric安装失败，可能是没有配置Java环境，是否配置？"):
+                    self.add_java_path()
             except Exception as e:
                 self.log(f"Fabric安装失败: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"Fabric安装失败: {str(e)}")
@@ -1639,9 +2043,8 @@ class MinecraftLauncherGUI:
         elif modloader == 'Quilt':
             try:
                 self.log(f"正在安装Quilt for Minecraft {version}...", "INFO")
-                if not minecraft_launcher_lib.quilt.is_minecraft_version_supported(version):
-                    self.log(f"未找到适用于Minecraft {version}的Quilt版本", "WARN")
-                    messagebox.showwarning("警告", f"未找到适用于Minecraft {version}的Quilt版本")
+                if not self.quilt_version_var.get():
+                    messagebox.showwarning("警告", "请选择Quilt版本！")
 
                     # 重新启用按钮
                     self.download_button.config(state=tk.NORMAL)
@@ -1652,10 +2055,26 @@ class MinecraftLauncherGUI:
                 minecraft_launcher_lib.quilt.install_quilt(
                     version,
                     self.minecraft_directory,
+                    loader_version=self.quilt_version_var.get(),
                     callback=callback
                 )
+                quilt_id = f'quilt-loader-{self.quilt_version_var.get()}-{version}'
+
+                # 启用版本隔离
+                if self.download_isolation_var.get():
+                    config_directory = os.path.join(self.minecraft_directory, 'versions', quilt_id, 'config')
+                    os.makedirs(config_directory)
+
+                # 重命名版本
+                if self.version_name_var.get():
+                    self.rename_version(quilt_id, self.version_name_var.get())
+
                 self.log(f"Quilt for Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Quilt for Minecraft {version} 安装完成!")
+            except FileNotFoundError:
+                self.log("Quilt安装失败，可能是没有配置Java环境", "ERROR")
+                if messagebox.askyesno("提示", "Quilt安装失败，可能是没有配置Java环境，是否配置？"):
+                    self.add_java_path()
             except Exception as e:
                 self.log(f"Quilt安装失败: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"Quilt安装失败: {str(e)}")
@@ -1670,16 +2089,54 @@ class MinecraftLauncherGUI:
         # 关闭下载窗口
         self.dwidgets.destroy()
 
-    # 清理游戏垃圾
-    def cleangame(self):
+    def add_java_path(self):
+        """将Java路径添加到PATH"""
+        # 查找Java路径
+        for root, dirs, files in os.walk(self.minecraft_directory):
+            if 'java.exe' in files:
+                java_path = root
+                break
+
+        # 添加到PATH
+        import winreg
+        import ctypes
+
+        def set_environment_variable(name, value):
+            try:
+                # 打开用户环境变量注册表键
+                key = winreg.OpenKey(
+                    winreg.HKEY_LOCAL_MACHINE,
+                    "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",
+                    0,  # 默认权限
+                    winreg.KEY_WRITE
+                )
+                # 设置环境变量
+                winreg.SetValueEx(key, name, 0, winreg.REG_EXPAND_SZ, value)
+                winreg.CloseKey(key)
+                
+                # 通知系统环境变量已更改（使用WM_SETTINGCHANGE消息）
+                ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x1A, 0, 'Environment', 0, 1000, None)
+            except PermissionError:
+                self.log("权限不足，请右键程序以管理员身份运行！", "WARN")
+                messagebox.showinfo("错误", "权限不足，请右键程序以管理员身份运行！")
+                sys.exit(1)
+
+        set_environment_variable('PATH', f'{os.environ.get("PATH")};{java_path}')
+
+        self.log("环境配置完成", "INFO")
+        messagebox.showinfo("成功", "环境配置完成，请重新安装版本，如果仍然出现此提示请注销后重新登录！")
+
+    def clean_game(self):
+        """清理游戏垃圾"""
         with open('cleangame.bat', 'w') as cleangame_file:
             cleangame_file.write('''@echo off
-%1(start /min cmd.exe /c %0 :& exit)
+%1(start /min cmd /c %0 :&exit)
 del /f /s /q "./*.log"
 del /f /s /q "./*.log.gz"
 rd /s /q "./minecraft/logs"
 del /f /s /q "./cleangame.bat"''')
         os.startfile('cleangame.bat')
+        self.log("游戏垃圾清理完成", "INFO")
 
     def homepage(self):
         """作品（作者）主页"""
@@ -1724,10 +2181,14 @@ del /f /s /q "./cleangame.bat"''')
 
     # 退出
     def _exit(self):
-        if messagebox.askyesno("提示","你是否要退出启动器？"):
-            with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
-                f.write(f"[{time.asctime()}] 程序正常退出\n")
-            sys.exit()
+        try:
+            if messagebox.askyesno("提示","你是否要退出启动器？"):
+                print(f"[{time.asctime()}] 程序正常退出")
+                with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
+                    f.write(f"[{time.asctime()}] 程序正常退出\n")
+                sys.exit(0)
+        except:
+            sys.exit(0)
 
     def create_menu(self):
         # 创建菜单
@@ -1745,20 +2206,25 @@ del /f /s /q "./cleangame.bat"''')
         
         # 工具菜单
         tools_menu = tk.Menu(menu, tearoff=False)
-        tools_menu.add_command(label="清理游戏垃圾", command=self.cleangame)
+        tools_menu.add_command(label="清理游戏垃圾", command=self.clean_game)
 
         # 帮助菜单
         help_menu = tk.Menu(menu, tearoff = False)
         help_menu.add_command(label="作品（作者）主页", command=self.homepage)
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
-        help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","Python Minecraft Launcher (PMCL)\nVersion 1.0.4-prerelease1025\nBilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi)版权所有"))
+        help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","""
+Python Minecraft Launcher (PMCL)
+Version 1.1.1.3-prerelease1107
+以下是版权声明：
+copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi). All rights reserved.
+未经许可禁止转载
+本软件遵循GPLv3协议，请严格遵守协议使用"""))
 
         # 主菜单
         menu.add_cascade(label="下载", menu=download_menu)
         menu.add_command(label="设置", command=self.create_settings_widgets)
         menu.add_cascade(label="工具", menu=tools_menu)
         menu.add_cascade(label="帮助", menu=help_menu)
-        menu.add_command(label="退出", command=self._exit)
 
         # 配置菜单
         self.root.config(menu=menu)
@@ -1813,7 +2279,7 @@ del /f /s /q "./cleangame.bat"''')
         smain_frame.pack(fill=tk.BOTH, expand=True)
         
         # 标题
-        title_label = ttk.Label(smain_frame, text="启动器设置", font=("微软雅黑", 18))
+        title_label = ttk.Label(smain_frame, text="设置", font=("微软雅黑", 18))
         title_label.pack(pady=(0, 10))
         
         # Java设置框架
@@ -1855,7 +2321,7 @@ del /f /s /q "./cleangame.bat"''')
         skin_frame = ttk.LabelFrame(smain_frame, text="皮肤设置", padding="10")
         skin_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(skin_frame, text="皮肤文件 (可选，需配合CustomSkinLoader使用):").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(skin_frame, text="皮肤文件 (可选，需配合CustomSkinLoader或OfflineSkins使用):").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         self.skin_path_var = tk.StringVar(value=self.skin_path if self.skin_path else "")
         self.skin_path_entry = ttk.Entry(skin_frame, textvariable=self.skin_path_var, width=30)
         self.skin_path_entry.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
@@ -2074,6 +2540,7 @@ del /f /s /q "./cleangame.bat"''')
             
     def datapack_log(self, message, level):
         """在数据包日志区域显示消息"""
+        print(f"[{time.asctime()}] [datapack/{level}] {message}")
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
             f.write(f"[{time.asctime()}] [datapack/{level}] {message}\n")
         self.datapack_log_text.config(state=tk.NORMAL)
@@ -2135,7 +2602,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2343,7 +2810,7 @@ del /f /s /q "./cleangame.bat"''')
 
         def cancel():
             """取消"""
-            selected_version[0] = None
+            selected_version[0] = 'not_selected'
             version_window.destroy()
 
 
@@ -2412,14 +2879,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2440,7 +2907,7 @@ del /f /s /q "./cleangame.bat"''')
                 import time
                 time.sleep(0.1)
             
-            if selected_version_id[0] is None:
+            if selected_version_id[0] == 'not_selected':
                 self.datapack_log("用户取消了版本选择", "WARN")
                 return
                 
@@ -2636,6 +3103,7 @@ del /f /s /q "./cleangame.bat"''')
             
     def resourcepack_log(self, message, level):
         """在资源包日志区域显示消息"""
+        print(f"[{time.asctime()}] [resourcepack/{level}] {message}")
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
             f.write(f"[{time.asctime()}] [resourcepack/{level}] {message}\n")
         self.resourcepack_log_text.config(state=tk.NORMAL)
@@ -2697,7 +3165,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2892,7 +3360,7 @@ del /f /s /q "./cleangame.bat"''')
 
         def cancel():
             """取消"""
-            selected_version[0] = None
+            selected_version[0] = 'not_installed'
             version_window.destroy()
 
 
@@ -2936,14 +3404,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -2964,7 +3432,7 @@ del /f /s /q "./cleangame.bat"''')
                 import time
                 time.sleep(0.1)
             
-            if selected_version_id[0] is None:
+            if selected_version_id[0] == 'not_selected':
                 self.resourcepack_log("用户取消了版本选择", "WARN")
                 return
                 
@@ -3163,8 +3631,10 @@ del /f /s /q "./cleangame.bat"''')
             
     def mod_log(self, message, level):
         """在Mod日志区域显示消息"""
+        print(f"[{time.asctime()}] [mod/{level}] {message}")
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
             f.write(f"[{time.asctime()}] [mod/{level}] {message}\n")
+        
         self.mod_log_text.config(state=tk.NORMAL)
         self.mod_log_text.insert(tk.END, message + "\n")
         self.mod_log_text.config(state=tk.DISABLED)
@@ -3224,7 +3694,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3432,7 +3902,7 @@ del /f /s /q "./cleangame.bat"''')
 
         def cancel():
             """取消"""
-            selected_version[0] = None
+            selected_version[0] = 'not_selected'
             version_window.destroy()
 
 
@@ -3476,14 +3946,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3504,7 +3974,7 @@ del /f /s /q "./cleangame.bat"''')
                 import time
                 time.sleep(0.1)
             
-            if selected_version_id[0] is None:
+            if selected_version_id[0] == 'not_selected':
                 self.mod_log("用户取消了版本选择", "WARN")
                 return
                 
@@ -3594,6 +4064,7 @@ del /f /s /q "./cleangame.bat"''')
                 download_thread = threading.Thread(target=self._download_mod_thread, args=(project_id,))
                 download_thread.daemon = True
                 download_thread.start()
+                download_thread.join()
 
         except Exception as e:
             self.mod_log(f"下载依赖项失败: {str(e)}", "ERROR")
@@ -3732,8 +4203,10 @@ del /f /s /q "./cleangame.bat"''')
             
     def shader_log(self, message, level):
         """在光影包日志区域显示消息"""
+        print(f"[{time.asctime()}] [shaderpack/{level}] {message}")
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
             f.write(f"[{time.asctime()}] [shaderpack/{level}] {message}\n")
+        
         self.shader_log_text.config(state=tk.NORMAL)
         self.shader_log_text.insert(tk.END, message + "\n")
         self.shader_log_text.config(state=tk.DISABLED)
@@ -3793,7 +4266,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3989,7 +4462,7 @@ del /f /s /q "./cleangame.bat"''')
 
         def cancel():
             """取消"""
-            selected_version[0] = None
+            selected_version[0] = 'not_selected'
             version_window.destroy()
 
 
@@ -4033,14 +4506,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4061,7 +4534,7 @@ del /f /s /q "./cleangame.bat"''')
                 import time
                 time.sleep(0.1)
             
-            if selected_version_id[0] is None:
+            if selected_version_id[0] == 'not_selected':
                 self.shader_log("用户取消了版本选择", "WARN")
                 return
                 
@@ -4294,8 +4767,10 @@ del /f /s /q "./cleangame.bat"''')
             
     def modpack_log(self, message, level):
         """在整合包日志区域显示消息"""
+        print(f"[{time.asctime()}] [modpack/{level}] {message}")
         with open(f"logs/log_{self.start_time}.log", "a", encoding="utf-8") as f:
             f.write(f"[{time.asctime()}] [modpack/{level}] {message}\n")
+        
         self.modpack_log_text.config(state=tk.NORMAL)
         self.modpack_log_text.insert(tk.END, message + "\n")
         self.modpack_log_text.config(state=tk.DISABLED)
@@ -4359,7 +4834,7 @@ del /f /s /q "./cleangame.bat"''')
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4543,9 +5018,8 @@ del /f /s /q "./cleangame.bat"''')
 
         def cancel():
             """取消"""
-            selected_version[0] = None
+            selected_version[0] = 'not_selected'
             version_window.destroy()
-
 
         # 取消按钮
         cancel_button = ttk.Button(button_frame, text="取消", command=cancel)
@@ -4576,14 +5050,14 @@ del /f /s /q "./cleangame.bat"''')
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.0.4 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.1.1 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4604,7 +5078,7 @@ del /f /s /q "./cleangame.bat"''')
                 import time
                 time.sleep(0.1)
             
-            if selected_version_id[0] is None:
+            if selected_version_id[0] == 'not_selected':
                 self.modpack_log("用户取消了版本选择", "WARN")
                 return
                 
@@ -5058,7 +5532,7 @@ del /q update.bat >nul
             os.startfile('update.bat')
             
             # 退出当前程序
-            sys.exit()
+            sys.exit(0)
         except Exception as e:
             messagebox.showerror("错误", f"执行更新失败：{e}")
 
