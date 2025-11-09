@@ -3,7 +3,7 @@ import subprocess
 import sys
 import os
 import psutil
-import pygetwindow as gw
+import platform
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, filedialog, simpledialog
 from PIL import Image, ImageTk
@@ -1389,8 +1389,10 @@ class MinecraftLauncherGUI:
         # 已知的Minecraft相关进程名
         self.minecraft_process_names = ['javaw.exe', 'java.exe', 'minecraft.exe']
 
-        # 初始化窗口数量
-        self.window_count = len(gw.getAllWindows())
+        if platform.system().lower() == 'windows': 
+            import pygetwindow as gw
+            # 初始化窗口数量
+            self.window_count = len(gw.getAllWindows())
     
     def check_process_by_cmdline(self):
         """通过命令行参数检测"""
@@ -1430,11 +1432,15 @@ class MinecraftLauncherGUI:
     
     def check_by_window(self):
         """通过窗口数量检测"""
-        if (len(gw.getAllWindows()) - self.window_count) > 0:
+        if platform.system().lower() == 'windows':
+            import pygetwindow as gw
+            if (len(gw.getAllWindows()) - self.window_count) > 0:
+                self.window_count = len(gw.getAllWindows())
+                return True
             self.window_count = len(gw.getAllWindows())
+            return False
+        else:
             return True
-        self.window_count = len(gw.getAllWindows())
-        return False
     
     def check_by_memory_usage(self):
         """通过内存使用模式检测（Minecraft通常使用大量内存）"""
@@ -1687,10 +1693,7 @@ class MinecraftLauncherGUI:
     def create_download_widgets(self):
         self.dwidgets = tk.Toplevel(self.root)
         self.dwidgets.title("下载版本")
-        
         self.dwidgets.geometry(f"500x420+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-420)/2)}")
-        
-        self.dwidgets.grab_set()
         self.dwidgets.resizable(False, False)
         
         # 下载窗口主框架
@@ -1923,6 +1926,19 @@ class MinecraftLauncherGUI:
             "setMax": set_max
         }
 
+        java_exe = 'java.exe' if platform.system().lower() == 'windows' else 'java'
+        java_path = None
+        for root, dirs, files in os.walk(self.minecraft_directory):
+            if java_exe in files:
+                java_path = os.path.join(root, java_exe)
+
+        if not java_path:
+            self.log("没有检测到Java，正在安装……", "INFO")
+            minecraft_launcher_lib.runtime.install_jvm_runtime(minecraft_launcher_lib.runtime.get_jvm_runtimes()[0], self.minecraft_directory, callback=callback)
+            for root, dirs, files in os.walk(self.minecraft_directory):
+                if java_exe in files:
+                    java_path = os.path.join(root, java_exe)
+
         if modloader == '原版':
             try:
                 self.log(f"正在安装Minecraft {version}...", "INFO")
@@ -1971,6 +1987,7 @@ class MinecraftLauncherGUI:
                 minecraft_launcher_lib.forge.install_forge_version(
                     forge_version,
                     self.minecraft_directory,
+                    java=java_path,
                     callback=callback
                 )
                 self.load_installed_versions()
@@ -1993,10 +2010,6 @@ class MinecraftLauncherGUI:
 
                 self.log(f"Forge {forge_version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Forge {forge_version} 安装完成!")
-            except FileNotFoundError:
-                self.log("Forge安装失败，可能是没有配置Java环境", "ERROR")
-                if messagebox.askyesno("提示", "Forge安装失败，可能是没有配置Java环境，是否配置？"):
-                    self.add_java_path()
             except Exception as e:
                 self.log(f"Forge安装失败: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"Forge安装失败: {str(e)}")
@@ -2017,6 +2030,7 @@ class MinecraftLauncherGUI:
                     version,
                     self.minecraft_directory,
                     loader_version=self.fabric_version_var.get(),
+                    java=java_path,
                     callback=callback
                 )
                 fabric_id = f'fabric-loader-{self.fabric_version_var.get()}-{version}'
@@ -2032,10 +2046,6 @@ class MinecraftLauncherGUI:
                 
                 self.log(f"Fabric for Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Fabric for Minecraft {version} 安装完成!")
-            except FileNotFoundError:
-                self.log("Fabric安装失败，可能是没有配置Java环境", "ERROR")
-                if messagebox.askyesno("提示", "Fabric安装失败，可能是没有配置Java环境，是否配置？"):
-                    self.add_java_path()
             except Exception as e:
                 self.log(f"Fabric安装失败: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"Fabric安装失败: {str(e)}")
@@ -2056,6 +2066,7 @@ class MinecraftLauncherGUI:
                     version,
                     self.minecraft_directory,
                     loader_version=self.quilt_version_var.get(),
+                    java=java_path,
                     callback=callback
                 )
                 quilt_id = f'quilt-loader-{self.quilt_version_var.get()}-{version}'
@@ -2071,10 +2082,6 @@ class MinecraftLauncherGUI:
 
                 self.log(f"Quilt for Minecraft {version} 安装完成!", "INFO")
                 messagebox.showinfo("成功", f"Quilt for Minecraft {version} 安装完成!")
-            except FileNotFoundError:
-                self.log("Quilt安装失败，可能是没有配置Java环境", "ERROR")
-                if messagebox.askyesno("提示", "Quilt安装失败，可能是没有配置Java环境，是否配置？"):
-                    self.add_java_path()
             except Exception as e:
                 self.log(f"Quilt安装失败: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"Quilt安装失败: {str(e)}")
@@ -2088,43 +2095,6 @@ class MinecraftLauncherGUI:
 
         # 关闭下载窗口
         self.dwidgets.destroy()
-
-    def add_java_path(self):
-        """将Java路径添加到PATH"""
-        # 查找Java路径
-        for root, dirs, files in os.walk(self.minecraft_directory):
-            if 'java.exe' in files:
-                java_path = root
-                break
-
-        # 添加到PATH
-        import winreg
-        import ctypes
-
-        def set_environment_variable(name, value):
-            try:
-                # 打开用户环境变量注册表键
-                key = winreg.OpenKey(
-                    winreg.HKEY_LOCAL_MACHINE,
-                    "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",
-                    0,  # 默认权限
-                    winreg.KEY_WRITE
-                )
-                # 设置环境变量
-                winreg.SetValueEx(key, name, 0, winreg.REG_EXPAND_SZ, value)
-                winreg.CloseKey(key)
-                
-                # 通知系统环境变量已更改（使用WM_SETTINGCHANGE消息）
-                ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x1A, 0, 'Environment', 0, 1000, None)
-            except PermissionError:
-                self.log("权限不足，请右键程序以管理员身份运行！", "WARN")
-                messagebox.showinfo("错误", "权限不足，请右键程序以管理员身份运行！")
-                sys.exit(1)
-
-        set_environment_variable('PATH', f'{os.environ.get("PATH")};{java_path}')
-
-        self.log("环境配置完成", "INFO")
-        messagebox.showinfo("成功", "环境配置完成，请重新安装版本，如果仍然出现此提示请注销后重新登录！")
 
     def clean_game(self):
         """清理游戏垃圾"""
@@ -2214,7 +2184,7 @@ del /f /s /q "./cleangame.bat"''')
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
         help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","""
 Python Minecraft Launcher (PMCL)
-Version 1.1.1.3-prerelease1107
+Version 1.1.1.3-prerelease1109
 以下是版权声明：
 copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi). All rights reserved.
 未经许可禁止转载
@@ -4022,6 +3992,7 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             urllib.request.urlretrieve(file_url, save_path, reporthook=progress_callback)
             
             self.mod_log(f"Mod下载完成: {save_path}", "INFO")
+            self.mod_window.after(0, lambda: messagebox.showinfo("成功", f"Mod下载完成!\n保存至: {save_path}"))
             
             # 处理依赖
             dependencies = selected_version.get('dependencies', [])
@@ -4032,8 +4003,6 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             if dependencies:
                 self.mod_log(f"发现 {len(dependencies)} 个依赖项，{self.required_dep_counter}个重要，正在处理...", "INFO")
                 self._download_dependencies(dependencies)
-            
-            self.mod_window.after(0, lambda: messagebox.showinfo("成功", f"Mod下载完成!\n保存至: {save_path}"))
             
         except Exception as e:
             self.mod_log(f"下载失败: {str(e)}", "ERROR")
