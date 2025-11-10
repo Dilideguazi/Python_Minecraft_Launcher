@@ -5,7 +5,7 @@ import os
 import psutil
 import platform
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, filedialog, simpledialog
+from tkinter import ttk, messagebox, scrolledtext, filedialog
 from PIL import Image, ImageTk
 import threading
 import urllib.error
@@ -409,7 +409,7 @@ class MinecraftLauncherGUI:
             if len(available_profiles) > 1:
                 selected_profile = self.select_littleskin_profile(available_profiles)
                 if not selected_profile:
-                    self.log("用户取消了角色选择", "INFO")
+                    self.log("用户取消了角色选择", "WARN")
                     return None
             else:
                 # 如果只有一个角色或没有角色，使用默认选择
@@ -457,7 +457,7 @@ class MinecraftLauncherGUI:
         
         # 居中显示
         dialog.update_idletasks()
-        dialog.geometry(f"500x300+{(dialog.winfo_screenwidth() // 2) - (500 // 2)}+{(dialog.winfo_screenheight() // 2) - (300 // 2)}")
+        dialog.geometry(f"500x330+{(dialog.winfo_screenwidth() // 2) - (500 // 2)}+{(dialog.winfo_screenheight() // 2) - (330 // 2)}")
         
         # 标签
         tk.Label(dialog, text="请选择一个角色:").pack(pady=10)
@@ -538,7 +538,7 @@ class MinecraftLauncherGUI:
             
         self.version_settings_window = tk.Toplevel(self.root)
         self.version_settings_window.title(f"{version} 设置")
-        self.version_settings_window.geometry(f"300x400+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-400)/2)}")
+        self.version_settings_window.geometry(f"300x430+{int((self.root.winfo_screenwidth()-300)/2)}+{int((self.root.winfo_screenheight()-430)/2)}")
         
         self.version_settings_window.grab_set()
         self.version_settings_window.resizable(False, False)
@@ -596,14 +596,19 @@ class MinecraftLauncherGUI:
         
     def open_folder(self, folder_path):
         """打开指定文件夹"""
-        if os.path.exists(folder_path):
-            os.startfile(folder_path)
-        else:
-            # 如果文件夹不存在，创建它
-            try:
+        try:
+            def _open():
+                if platform.system().lower() == 'windows':
+                    os.startfile(folder_path)
+                else:
+                    os.system(f'open {folder_path}')
+            if os.path.exists(folder_path):
+                _open()
+            else:
+                # 如果文件夹不存在，创建它
                 os.makedirs(folder_path)
-                os.startfile(folder_path)
-            except Exception as e:
+                _open()
+        except Exception as e:
                 self.log(f"无法打开或创建文件夹: {str(e)}", "ERROR")
                 messagebox.showerror("错误", f"无法打开或创建文件夹: {str(e)}")
                 
@@ -1209,8 +1214,10 @@ class MinecraftLauncherGUI:
                         self.launch_version_var.set(new_name)
                 
                 # 如果是从版本设置窗口重命名，关闭窗口
-                if hasattr(self, "version_settings_window"):
+                try:
                     self.version_settings_window.destroy()
+                except:
+                    pass
                 
                 # 当安装整合包时不显示弹窗和日志
                 if specify_name:
@@ -1681,7 +1688,7 @@ class MinecraftLauncherGUI:
                 self.log(f"游戏以错误代码{result.returncode}退出", "WARN")
                 messagebox.showerror("错误", f"游戏以错误代码{result.returncode}退出")
             else:
-                self.log("游戏正常退出")
+                self.log("游戏正常退出", "INFO")
         except Exception as e:
             self.log(f"启动失败: {str(e)}", "ERROR")
             messagebox.showerror("错误", f"启动失败: {str(e)}")
@@ -2184,7 +2191,7 @@ del /f /s /q "./cleangame.bat"''')
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
         help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","""
 Python Minecraft Launcher (PMCL)
-Version 1.1.1.3-prerelease1109
+Version 1.1.1.3-prerelease1110
 以下是版权声明：
 copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi). All rights reserved.
 未经许可禁止转载
@@ -2207,7 +2214,7 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
                 with open(settings_file, "r") as f:
                     settings = json.load(f)
                     self.use_custom_java = settings.get("use_custom_java", True)
-                    self.use_java = settings.get("use_java", False)
+                    self.use_java = settings.get("use_java", False) if platform.system().lower() == 'windows' else True
                     self.java_path = settings.get("java_path", None)
                     self.skin_path = settings.get("skin_path", None)
                     self.username_var.set(settings.get("offline_username", ""))
@@ -2269,8 +2276,8 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
         self.java_browse_button = ttk.Button(self.custom_java_frame, text="浏览", command=self.browse_java_path)
         self.java_browse_button.grid(row=1, column=1, padx=(5, 0), pady=(0, 5))
 
-        self.use_java_var = tk.BooleanVar(value=self.use_java)
-        self.use_java_checkbox = ttk.Checkbutton(java_frame, text="使用java.exe而不是javaw.exe", variable=self.use_java_var)
+        self.use_java_var = tk.BooleanVar(value=self.use_java if platform.system().lower() == 'windows' else True)
+        self.use_java_checkbox = ttk.Checkbutton(java_frame, text="使用java而不是javaw", variable=self.use_java_var, state=tk.NORMAL if platform.system().lower() == 'windows' else tk.DISABLED)
         self.use_java_checkbox.grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
 
         java_frame.columnconfigure(0, weight=1)
@@ -2316,7 +2323,7 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
         self.load_settings()
 
         # 根据是否使用自定义Java调整窗口大小
-        self.settings_window.geometry(f"500x{450 if self.use_custom_java_var.get() else 540}+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-(450 if self.use_custom_java_var.get() else 540))/2)}")
+        self.settings_window.geometry(f"500x{470 if self.use_custom_java_var.get() else 560}+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-(470 if self.use_custom_java_var.get() else 560))/2)}")
 
         if self.use_custom_java_var.get():
             self.use_java_var.set(self.use_java)
@@ -2366,8 +2373,8 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
     def toggle_use_custom_java_state(self):
         """切换使用自定义Java状态"""
         if self.use_custom_java_var.get():
-            self.use_java_checkbox.config(state=tk.NORMAL)
-            self.use_java_var.set(self.use_java)
+            self.use_java_checkbox.config(state=tk.NORMAL if platform.system().lower() == 'windows' else tk.DISABLED)
+            self.use_java_var.set(self.use_java if platform.system().lower() == 'windows' else True)
             self.custom_java_frame.grid_remove()
             self.settings_window.geometry(f"500x450+{int((self.root.winfo_screenwidth()-500)/2)}+{int((self.root.winfo_screenheight()-450)/2)}")
         else:
