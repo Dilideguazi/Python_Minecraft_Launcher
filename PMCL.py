@@ -2191,7 +2191,8 @@ class MinecraftLauncherGUI:
 
         # 帮助菜单
         help_menu = tk.Menu(menu, tearoff = False)
-        help_menu.add_command(label="检查更新", command=lambda: self.check_update(True))
+        if platform.system().lower() == 'windows':
+            help_menu.add_command(label="检查更新", command=lambda: self.check_update(True))
         help_menu.add_command(label="作品（作者）主页", command=self.homepage)
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
         help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","""
