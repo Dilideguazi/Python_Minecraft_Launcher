@@ -147,7 +147,7 @@ class MinecraftLauncherGUI:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.1.2.0'
+            current_version = '1.2.0.0'
             have_later_version = False
 
             # 获取更新日志
@@ -388,7 +388,7 @@ class MinecraftLauncherGUI:
                 data=data,
                 headers={
                     'Content-Type': 'application/json',
-                    'User-Agent': 'PMCL/1.1.2 (Python Minecraft Launcher)'
+                    'User-Agent': 'PMCL/1.2 (Python Minecraft Launcher)'
                 }
             )
             
@@ -2196,7 +2196,7 @@ class MinecraftLauncherGUI:
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
         help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","""
 Python Minecraft Launcher (PMCL)
-Version 1.1.2
+Version 1.2
 以下是版权声明：
 copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi). All rights reserved.
 未经许可禁止转载
@@ -2588,7 +2588,7 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -2865,14 +2865,14 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3151,7 +3151,7 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3390,14 +3390,14 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -3680,7 +3680,7 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -3932,14 +3932,14 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4251,7 +4251,7 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -4491,14 +4491,14 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
@@ -4819,7 +4819,7 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             
             # 发送请求
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode())
             
@@ -5035,14 +5035,14 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
             # 获取项目详细信息
             project_url = f'https://api.modrinth.com/v2/project/{project_id}'
             req = urllib.request.Request(project_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             project_data = json.loads(response.read().decode())
             
             # 获取项目版本信息
             versions_url = f'https://api.modrinth.com/v2/project/{project_id}/version'
             req = urllib.request.Request(versions_url)
-            req.add_header('User-Agent', 'PMCL/1.1.2 (Python Minecraft Launcher)')
+            req.add_header('User-Agent', 'PMCL/1.2 (Python Minecraft Launcher)')
             response = urllib.request.urlopen(req)
             versions_data = json.loads(response.read().decode())
             
