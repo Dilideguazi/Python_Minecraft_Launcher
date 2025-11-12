@@ -2196,7 +2196,7 @@ class MinecraftLauncherGUI:
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
         help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","""
 Python Minecraft Launcher (PMCL)
-Version 1.2
+Version 1.2 (Win7 Edition)
 以下是版权声明：
 copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi). All rights reserved.
 未经许可禁止转载
