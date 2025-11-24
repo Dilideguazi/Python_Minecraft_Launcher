@@ -21,7 +21,6 @@ class MinecraftLauncherGUI:
             # 创建窗口
             self.root = root
             self.root.title("Python Minecraft Launcher")
-            self.root.geometry(f"800x700+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-700)/2)}")
             
             # 记录日志
             self.start_time = int(time.time())
@@ -44,10 +43,10 @@ class MinecraftLauncherGUI:
             
             # 使用 PIL 打开PNG图片
             image = Image.open(self.resource_path('PMCL.png'))
-            photo = ImageTk.PhotoImage(image)
+            self.photo = ImageTk.PhotoImage(image)
             
             # 设置窗口图标
-            self.root.iconphoto(True, photo)
+            self.root.iconphoto(True, self.photo)
 
             # 绑定退出事件
             self.root.protocol("WM_DELETE_WINDOW", self._exit)
@@ -90,25 +89,50 @@ class MinecraftLauncherGUI:
             # 初始化版本隔离
             self.isolation_var = tk.BooleanVar()
             self.isolation_dir = ''
-            
-            # 创建界面
-            self.create_widgets()
 
-            # 创建菜单
-            self.create_menu()
-            
-            # 获取版本列表
-            self.load_installed_versions()
-
-            # 尝试从配置文件加载设置
-            self.load_settings()
-            
-            # 加载LittleSkin设置
-            self.load_littleskin_credentials()
-
-            # 检查更新
+            # 显示启动画面
             if platform.system().lower() == 'windows':
+                self.root.overrideredirect(True)
+            else:
+                self.root.attributes('-type', 'dock')
+            self.start_image = ttk.Label(self.root, image=self.photo)
+            self.start_image.grid(row=0, column=0)
+            self.root.geometry(f"{image.width}x{image.height}+{int((self.root.winfo_screenwidth()-image.width)/2)}+{int((self.root.winfo_screenheight()-image.height)/2)}")
+            self.root.config(cursor='watch')        
+
+            def create_gui():
+                """创建GUI"""
+                # 创建界面
+                self.create_widgets()
+
+                # 创建菜单
+                self.create_menu()
+
+                # 获取版本列表
+                self.load_installed_versions()
+
+                # 尝试从配置文件加载设置
+                self.load_settings()
+                
+                # 加载LittleSkin设置
+                self.load_littleskin_credentials()
+
+                # 检查更新
                 self.check_update(False)
+
+            # 取消显示启动画面
+            def cancel_show():
+                self.start_image.grid_remove()
+                if platform.system().lower() == 'windows':
+                    self.root.overrideredirect(False)
+                else:
+                    self.root.attributes('-type', 'normal')
+                self.root.geometry(f"800x700+{int((self.root.winfo_screenwidth()-800)/2)}+{int((self.root.winfo_screenheight()-700)/2)}")
+                self.root.config(cursor='arrow')
+                self.root.after(10, create_gui)
+            
+            self.root.after(2000, cancel_show) 
+        
         except Exception as e:
             messagebox.showerror("错误", f"程序初始化失败: {e}")
             self.log(f"程序初始化失败: {e}", "ERROR")
@@ -146,7 +170,7 @@ class MinecraftLauncherGUI:
             # 获取最新版本
             check_update = self.get_from_server('https://pmcldownloadserver.dpdns.org/latest_version.json').decode('utf-8')
             
-            current_version = '1.2.0.0'
+            current_version = '1.2.0.1'
             have_later_version = False
 
             # 获取更新日志
@@ -161,59 +185,61 @@ class MinecraftLauncherGUI:
             # 如果存在更新版本，下载它
             if have_later_version:
                 version = json.loads(check_update).get('latest_version')
-                if messagebox.askyesno("提示", f"存在新版本：{version[:-2] if not int(version[6]) else version[:-2] + '-hotfix.' + version[-1]}，更新内容：{patch_notes}，是否更新？"):
-                    # 创建一个顶层窗口来显示进度条
-                    progress_window = tk.Toplevel(self.root)
-                    progress_window.title("下载进度")
-                    progress_window.geometry("300x100")
+                if platform.system().lower() == 'windows':
+                    if messagebox.askyesno("提示", f"存在新版本：{version[:-2] if not int(version[6]) else version[:-2] + '-hotfix.' + version[-1]}，更新内容：{patch_notes}，是否更新？"):
+                        # 创建一个顶层窗口来显示进度条
+                        progress_window = tk.Toplevel(self.root)
+                        progress_window.title("下载进度")
+                        progress_window.geometry("300x100")
 
-                    progress_window.resizable(False, False)
-                    progress_window.transient(self.root)
-                    progress_window.grab_set()
-                    
-                    # 添加进度条
-                    progress_label = ttk.Label(progress_window, text="正在下载最新版本...")
-                    progress_label.pack(pady=5)
+                        progress_window.resizable(False, False)
+                        progress_window.transient(self.root)
+                        progress_window.grab_set()
+                        
+                        # 添加进度条
+                        progress_label = ttk.Label(progress_window, text="正在下载最新版本...")
+                        progress_label.pack(pady=5)
 
-                    progress_info_label = ttk.Label(progress_window, text="")
-                    progress_info_label.pack(pady=5)
-                    
-                    progress_bar = ttk.Progressbar(progress_window, orient="horizontal", length=280, mode="determinate")
-                    progress_bar.pack(pady=10)
-                    
-                    headers = {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-                    }
-                    req = urllib.request.Request('https://pmcldownloadserver.dpdns.org/PMCL_Win7.exe', headers=headers)
-                    response = urllib.request.urlopen(req)
-                    
-                    # 获取文件大小
-                    total_size = int(response.info().get('Content-Length', '0'))
-                    progress_bar["maximum"] = total_size
+                        progress_info_label = ttk.Label(progress_window, text="")
+                        progress_info_label.pack(pady=5)
+                        
+                        progress_bar = ttk.Progressbar(progress_window, orient="horizontal", length=280, mode="determinate")
+                        progress_bar.pack(pady=10)
+                        
+                        headers = {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                        }
+                        req = urllib.request.Request('https://pmcldownloadserver.dpdns.org/PMCL_Win7.exe', headers=headers)
+                        response = urllib.request.urlopen(req)
+                        
+                        # 获取文件大小
+                        total_size = int(response.info().get('Content-Length', '0'))
+                        progress_bar["maximum"] = total_size
 
-                    # 下载文件并更新进度条
-                    def download_with_progress():
-                        downloaded = 0
-                        with open('update.exe', 'wb') as f:
-                            while True:
-                                chunk = response.read(8192)
-                                if not chunk:
-                                    break
-                                f.write(chunk)
-                                downloaded += len(chunk)
-                                progress_info_label["text"] = f"{self.format_file_size(downloaded)}/{self.format_file_size(total_size)} {downloaded / total_size * 100:.1f}%"
-                                progress_bar["value"] = downloaded
-                                progress_window.update_idletasks()
+                        # 下载文件并更新进度条
+                        def download_with_progress():
+                            downloaded = 0
+                            with open('update.exe', 'wb') as f:
+                                while True:
+                                    chunk = response.read(8192)
+                                    if not chunk:
+                                        break
+                                    f.write(chunk)
+                                    downloaded += len(chunk)
+                                    progress_info_label["text"] = f"{self.format_file_size(downloaded)}/{self.format_file_size(total_size)} {downloaded / total_size * 100:.1f}%"
+                                    progress_bar["value"] = downloaded
+                                    progress_window.update_idletasks()
 
-                        # 下载完成后关闭进度窗口并继续更新过程
-                        progress_window.destroy()
-                        self.install_update()
+                            # 下载完成后关闭进度窗口并继续更新过程
+                            progress_window.destroy()
+                            self.install_update()
 
-                    # 在新线程中下载更新
-                    download_update_thread = threading.Thread(target=download_with_progress)
-                    download_update_thread.daemon = True
-                    download_update_thread.start()
-
+                        # 在新线程中下载更新
+                        download_update_thread = threading.Thread(target=download_with_progress)
+                        download_update_thread.daemon = True
+                        download_update_thread.start()
+                else:
+                    messagebox.showinfo("提示", f"存在新版本：{version[:-2] if not int(version[6]) else version[:-2] + '-hotfix.' + version[-1]}，更新内容：{patch_notes}")
             elif from_menu:
                 messagebox.showinfo("提示", "已是最新版本")
         except Exception as e:
@@ -1549,12 +1575,12 @@ class MinecraftLauncherGUI:
             def detect_launch():
                 """检测Minecraft启动"""
                 # 记录时间
-                start_time = time.time()
+                launch_time = time.time()
                 while True:
                     if self.is_minecraft_running():
                         self.log(f"Minecraft {version} 启动成功！", "INFO")
                         return
-                    if (time.time() - start_time) > 300: # 5分钟后自动超时
+                    if (time.time() - launch_time) > 300: # 5分钟后自动超时
                         self.log(f"Minecraft {version} 没有启动，已自动超时", "WARN")
                     if result:
                         return
@@ -1668,12 +1694,12 @@ class MinecraftLauncherGUI:
             def detect_launch():
                 """检测Minecraft启动"""
                 # 记录时间
-                start_time = time.time()
+                launch_time = time.time()
                 while True:
                     if self.is_minecraft_running():
                         self.log(f"Minecraft {version} 启动成功！", "INFO")
                         return
-                    if (time.time() - start_time) > 300: # 5分钟后自动超时
+                    if (time.time() - launch_time) > 300: # 5分钟后自动超时
                         self.log(f"Minecraft {version} 没有启动，已自动超时", "WARN")
                     if result:
                         return
@@ -2190,13 +2216,12 @@ class MinecraftLauncherGUI:
 
         # 帮助菜单
         help_menu = tk.Menu(menu, tearoff = False)
-        if platform.system().lower() == 'windows':
-            help_menu.add_command(label="检查更新", command=lambda: self.check_update(True))
+        help_menu.add_command(label="检查更新", command=lambda: self.check_update(True))
         help_menu.add_command(label="作品（作者）主页", command=self.homepage)
         help_menu.add_command(label="支持与反馈", command=lambda: messagebox.showinfo("支持与反馈","如有意见，请去Gitcode或Github仓库提Issue！"))
         help_menu.add_command(label="关于", command=lambda: messagebox.showinfo("关于","""
 Python Minecraft Launcher (PMCL)
-Version 1.2 (Win7 Edition)
+Version 1.2-hotfix.1 (Win7 Edition)
 以下是版权声明：
 copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi). All rights reserved.
 未经许可禁止转载
@@ -5507,9 +5532,17 @@ copyright © 2025 Bilibili @七星五彩 (Github Gitcode & YouTube Dilideguazi).
     def install_update(self):
         """安装更新"""
         try:
-            # 创建更新批处理文件
-            with open('update.bat', 'w') as update:
-                update.write('''
+            try:
+                self.log("正在下载更新程序……", "INFO")
+                if not os.path.exists('updater.exe'):
+                    # 下载更新程序
+                    with open('updater.exe', 'wb') as update:
+                        update.write(self.get_from_server('https://pmcldownloadserver.dpdns.org/updater.exe'))
+            except:
+                self.log("下载更新程序失败，将使用传统更新方法……", "WARN")
+                # 创建更新批处理文件
+                with open('updater.bat', 'w') as update:
+                    update.write('''
 @echo off
 setlocal
                             
@@ -5528,8 +5561,9 @@ move /y update.exe PMCL_Win7.exe >nul
 
 start PMCL_Win7.exe
 
-del /q update.bat >nul
+del /q updater.bat >nul
 ''')
+                    
             
             # 在主线程中退出程序并启动更新批处理
             self.root.after(100, self._execute_update)
@@ -5540,7 +5574,10 @@ del /q update.bat >nul
         """在主线程中执行更新"""
         try:
             # 启动更新批处理
-            os.startfile('update.bat')
+            try:
+                os.startfile('updater.exe')
+            except:
+                os.startfile('updater.bat')
             
             # 退出当前程序
             sys.exit(0)
